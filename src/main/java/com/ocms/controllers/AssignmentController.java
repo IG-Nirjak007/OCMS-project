@@ -1,17 +1,9 @@
 package com.ocms.controllers;
 
-import com.ocms.dto.AssignmentDTO;
-import com.ocms.dto.DTOMapper;
-import com.ocms.dto.SubmissionDTO;
+import com.ocms.dto.*;
 import com.ocms.exception.ResourceNotFoundException;
-import com.ocms.models.Assignment;
-import com.ocms.models.Course;
-import com.ocms.models.Submission;
-import com.ocms.models.User;
-import com.ocms.repositories.AssignmentRepository;
-import com.ocms.repositories.CourseRepository;
-import com.ocms.repositories.SubmissionRepository;
-import com.ocms.repositories.UserRepository;
+import com.ocms.models.*;
+import com.ocms.repositories.*;
 import com.ocms.services.FileStorageService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,10 +13,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// CRUD /api/assignments - INSTRUCTOR manages; STUDENT reads
 @RestController
 @RequestMapping("/api")
 public class AssignmentController {
+
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
     private final CourseRepository courseRepository;
@@ -49,7 +41,7 @@ public class AssignmentController {
     }
 
     @PostMapping("/courses/{courseId}/assignments")
-    @PreAuthorize("hasRole('Instructor')")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
     public ResponseEntity<AssignmentDTO> createAssignment(@PathVariable Long courseId, @RequestBody AssignmentDTO dto) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
@@ -64,25 +56,44 @@ public class AssignmentController {
         return ResponseEntity.ok(DTOMapper.toAssignmentDTO(saved));
     }
 
-    @PostMapping("/assignment/{assignmentId}/submit")
-    @PreAuthorize("hasRole('Student')")
+    @PostMapping("/assignments/{assignmentId}/submit")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<SubmissionDTO> submitAssignment(
             @PathVariable Long assignmentId,
             @RequestParam("studentId") Long studentId,
             @RequestParam(value = "file", required = false) MultipartFile file) {
+
         Assignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment not found"));
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
 
-        Submission submission = new Submission(student, assignment);
+        Submission submission = new Submission();
+        submission.setAssignment(assignment);
+        submission.setStudent(student);
 
         if (file != null && !file.isEmpty()) {
-            String filePath = fileStorageService.store(file);
-            submission.setFilePath(filePath);
+            submission.setFilePath(fileStorageService.store(file));
         }
 
         Submission saved = submissionRepository.save(submission);
         return ResponseEntity.ok(DTOMapper.toSubmissionDTO(saved));
+    }
+
+    @PutMapping("/submissions/{submissionId}/grade")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
+    public ResponseEntity<SubmissionDTO> gradeSubmission(
+            @PathVariable Long submissionId,
+            @RequestParam Integer grade,
+            @RequestParam String feedback) {
+
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission not found"));
+
+        submission.setGrade(grade);
+        submission.setFeedback(feedback);
+
+        Submission updated = submissionRepository.save(submission);
+        return ResponseEntity.ok(DTOMapper.toSubmissionDTO(updated));
     }
 }
