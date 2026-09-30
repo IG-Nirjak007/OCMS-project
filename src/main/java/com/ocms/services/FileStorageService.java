@@ -2,22 +2,35 @@ package com.ocms.services;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.nio.file.*;
 
-/**
- * Service responsible for storing uploaded files (e.g., assignment submissions).
- * Implement the store method with actual file system or cloud storage logic.
- */
 @Service
 public class FileStorageService {
 
-    /**
-     * Stores the given multipart file and returns the path/URL where it is saved.
-     *
-     * @param file the uploaded file
-     * @return the stored file path or identifier
-     */
-    public String store(MultipartFile file) {
-        // TODO: implement actual file storage logic (local disk, S3, etc.)
-        throw new UnsupportedOperationException("FileStorageService.store() is not yet implemented");
+    private final Path storageLocation = Paths.get("uploads").toAbsolutePath().normalize();
+
+    public FileStorageService() {
+        try {
+            Files.createDirectories(storageLocation);
+        } catch (Exception e) {
+            throw new RuntimeException("Could not create storage directory.", e);
+        }
+    }
+
+    public String storeFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) return null;
+        try {
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            Path targetLocation = this.storageLocation.resolve(fileName);
+            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            return targetLocation.toString();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to store file", e);
+        }
+    }
+
+    public Path loadFile(String filePath) {
+        return Paths.get(filePath);
     }
 }
