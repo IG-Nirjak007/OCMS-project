@@ -1,0 +1,3 @@
+@echo off
+echo Running Postman API tests using Newman...
+npx --yes newman run postman\ocms-api-collection.json

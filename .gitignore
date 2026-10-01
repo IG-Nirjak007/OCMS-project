@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Postman local configuration and cache
+.postman/
+postman/
