@@ -1,10 +1,12 @@
 package com.ocms.models;
 
 import jakarta.persistence.*;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Represents a course in the OCMS platform.
- * A course belongs to an instructor (User with ROLE_INSTRUCTOR)
+ * A course is created by one or more instructors (Users with ROLE_INSTRUCTOR)
  * and can have many enrolled students via the Enrollment entity.
  */
 @Entity
@@ -15,21 +17,28 @@ public class Course {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** Unique course name / title. */
+    /** Unique course title. */
     @Column(nullable = false, unique = true)
-    private String name;
+    private String title;
 
     /** Optional detailed description of the course. */
     @Column(length = 2000)
     private String description;
 
+    /** Optional schedule information (e.g. "Mon/Wed 9-11am"). */
+    private String schedule;
+
     /**
-     * The instructor who owns / created this course.
-     * Stored as a FK column "instructor_id" in the courses table.
+     * The instructors who own / teach this course.
+     * Stored as a join table "course_instructors".
      */
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "instructor_id")
-    private User instructor;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "course_instructors",
+        joinColumns = @JoinColumn(name = "course_id"),
+        inverseJoinColumns = @JoinColumn(name = "instructor_id")
+    )
+    private Set<User> instructors = new HashSet<>();
 
     // ---------------------------------------------------------------
     // Constructors
@@ -38,10 +47,12 @@ public class Course {
     public Course() {
     }
 
-    public Course(String name, String description, User instructor) {
-        this.name        = name;
+    public Course(String title, String description, User instructor) {
+        this.title       = title;
         this.description = description;
-        this.instructor  = instructor;
+        if (instructor != null) {
+            this.instructors.add(instructor);
+        }
     }
 
     // ---------------------------------------------------------------
@@ -52,12 +63,12 @@ public class Course {
         return id;
     }
 
-    public String getName() {
-        return name;
+    public String getTitle() {
+        return title;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setTitle(String title) {
+        this.title = title;
     }
 
     public String getDescription() {
@@ -68,11 +79,19 @@ public class Course {
         this.description = description;
     }
 
-    public User getInstructor() {
-        return instructor;
+    public String getSchedule() {
+        return schedule;
     }
 
-    public void setInstructor(User instructor) {
-        this.instructor = instructor;
+    public void setSchedule(String schedule) {
+        this.schedule = schedule;
+    }
+
+    public Set<User> getInstructors() {
+        return instructors;
+    }
+
+    public void setInstructors(Set<User> instructors) {
+        this.instructors = instructors;
     }
 }

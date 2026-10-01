@@ -30,6 +30,11 @@ public class FileStorageService {
         }
     }
 
+    /** Alias for {@link #storeFile(MultipartFile)} used by controllers. */
+    public String store(MultipartFile file) {
+        return storeFile(file);
+    }
+
     public Path loadFile(String filePath) {
         return Paths.get(filePath);
     }

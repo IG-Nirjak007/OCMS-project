@@ -59,6 +59,16 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     boolean existsByStudentAndCourse(User student, Course course);
 
     /**
+     * Check whether a student is already enrolled in a course using IDs only.
+     * Convenience variant used by controllers that have only path variable IDs.
+     *
+     * @param studentId the ID of the student
+     * @param courseId  the ID of the course
+     * @return true if the student is enrolled in the course
+     */
+    boolean existsByStudentIdAndCourseId(Long studentId, Long courseId);
+
+    /**
      * Retrieve all courses a student is enrolled in using a JPQL projection.
      * Returns Course objects directly, avoiding repeated join traversal in services.
      *
