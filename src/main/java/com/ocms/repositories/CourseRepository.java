@@ -2,6 +2,7 @@ package com.ocms.repositories;
 
 import com.ocms.models.Course;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -15,6 +16,19 @@ import java.util.Optional;
  */
 @Repository
 public interface CourseRepository extends JpaRepository<Course, Long> {
+
+    interface CourseInstructorProjection {
+        Long getId();
+        String getTitle();
+        String[] getInstructors();
+    }
+
+    @Query(value = "SELECT c.id AS id, c.title AS title, array_agg(u.username) AS instructors " +
+            "FROM courses c " +
+            "JOIN course_instructors ci ON ci.course_id = c.id " +
+            "JOIN users u ON u.id = ci.instructor_id " +
+            "GROUP BY c.id, c.title", nativeQuery = true)
+    List<CourseInstructorProjection> findCoursesWithInstructorsAggregated();
 
     /**
      * Find a course by its unique title.
