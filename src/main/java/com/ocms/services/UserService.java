@@ -68,4 +68,12 @@ public class UserService {
     public List<User> findAll() {
         return userRepository.findAll();
     }
+
+    /** Delete a user by ID (admin use). Throws ResourceNotFoundException if not found. */
+    public void deleteById(Long id) {
+        if (!userRepository.existsById(id)) {
+            throw new ResourceNotFoundException("User not found: " + id);
+        }
+        userRepository.deleteById(id);
+    }
 }

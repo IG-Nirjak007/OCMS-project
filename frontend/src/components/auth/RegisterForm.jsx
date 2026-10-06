@@ -1,0 +1,1 @@
+// RegisterForm component stub  
