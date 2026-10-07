@@ -10,7 +10,7 @@ public class Role {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String name; // ROLE_STUDENT, ROLE_INSTRUCTOR
+    private String name; // ROLE_STUDENT, ROLE_TEACHER, ROLE_ADMIN
 
     public Role() {
     }
