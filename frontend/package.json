@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "react": "^19.3.0"
+    "react": "^19.3.0",
+    "react-router-dom": "^7.18.4"
   }
 }
