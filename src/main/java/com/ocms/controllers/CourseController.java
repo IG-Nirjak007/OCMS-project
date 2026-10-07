@@ -1,5 +1,5 @@
 package com.ocms.controllers;
-// CRUD /api/courses - INSTRUCTOR creates; STUDENT views enrolled courses
+// CRUD /api/courses - TEACHER creates/manages; STUDENT views enrolled courses
 
 import com.ocms.dto.CourseCreateDTO;
 import com.ocms.dto.CourseDTO;
@@ -38,7 +38,7 @@ public class CourseController {
                 .collect(Collectors.toList());
     }
     @PostMapping
-    @PreAuthorize("hasRole('Instructor')")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<CourseDTO> createCourse(@RequestBody CourseCreateDTO dto,@RequestParam Long instructorId){
         User instructor = userRepository.findById(instructorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Instructor not found"));
@@ -52,7 +52,7 @@ public class CourseController {
         return ResponseEntity.ok(DTOMapper.toCourseDTO(saved));
     }
     @PostMapping("/{courseId}/instructors/{instructorId}")
-    @PreAuthorize("hasRole('INSTRUCTOR')")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<CourseDTO> addInstructor(@PathVariable Long courseId, @PathVariable Long instructorId) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found"));

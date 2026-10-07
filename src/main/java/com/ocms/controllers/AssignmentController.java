@@ -41,7 +41,7 @@ public class AssignmentController {
     }
 
     @PostMapping("/courses/{courseId}/assignments")
-    @PreAuthorize("hasRole('INSTRUCTOR')")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<AssignmentDTO> createAssignment(@PathVariable Long courseId, @RequestBody AssignmentDTO dto) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
@@ -81,7 +81,7 @@ public class AssignmentController {
     }
 
     @PutMapping("/submissions/{submissionId}/grade")
-    @PreAuthorize("hasRole('INSTRUCTOR')")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<SubmissionDTO> gradeSubmission(
             @PathVariable Long submissionId,
             @RequestParam Integer grade,

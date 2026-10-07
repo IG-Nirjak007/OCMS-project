@@ -1,5 +1,5 @@
 package com.ocms.controllers;
-// POST /api/materials (INSTRUCTOR upload); GET /api/materials/{courseId}
+// POST /api/courses/{courseId}/materials (TEACHER upload); GET /api/courses/{courseId}/materials
 
 import com.ocms.dto.DTOMapper;
 import com.ocms.dto.MaterialDTO;
@@ -42,7 +42,7 @@ public class MaterialController {
                 .collect(Collectors.toList());
     }
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('INSTRUCTOR')")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<MaterialDTO> uploadMaterial(
             @PathVariable Long courseId,
             @RequestParam("title") String title,
