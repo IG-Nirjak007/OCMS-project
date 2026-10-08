@@ -1,5 +1,6 @@
 package com.ocms.services;
 // Business logic: create/update/delete courses, add instructors, list enrolled
+
 // courses
 
 import com.ocms.exception.ResourceNotFoundException;
@@ -9,6 +10,8 @@ import com.ocms.models.User;
 import com.ocms.repositories.CourseRepository;
 import com.ocms.repositories.EnrollmentRepository;
 import com.ocms.repositories.UserRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,12 +22,21 @@ public class CourseService {
     private final UserRepository userRepository;
     private final EnrollmentRepository enrollmentRepository;
 
-    public CourseService(CourseRepository courseRepository, UserRepository userRepository, EnrollmentRepository enrollmentRepository) {
+    public CourseService(CourseRepository courseRepository, UserRepository userRepository,
+            EnrollmentRepository enrollmentRepository) {
         this.courseRepository = courseRepository;
         this.userRepository = userRepository;
         this.enrollmentRepository = enrollmentRepository;
     }
 
+    @Cacheable(value = "courses")
+    public List<Course> getAllCourses() {
+
+        return courseRepository.findAll();
+    }
+
+    // Clears 'courses' cache in Redis whenever a new course is added
+    @CacheEvict(value = "courses", allEntries = true)
     public Course createCourse(Course course, Long instructorId) {
         User instructor = userRepository.findById(instructorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Instructor not found"));
@@ -52,7 +64,4 @@ public class CourseService {
         return enrollmentRepository.save(new Enrollment(student, course));
     }
 
-    public List<Course> getAllCourses() {
-        return courseRepository.findAll();
-    }
 }
