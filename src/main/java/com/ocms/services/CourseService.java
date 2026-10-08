@@ -64,4 +64,30 @@ public class CourseService {
         return enrollmentRepository.save(new Enrollment(student, course));
     }
 
+    public Course getCourseById(Long id) {
+        return courseRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with id " + id));
+    }
+
+    public List<Course> getCoursesForStudent(Long studentId) {
+        User student = userRepository.findById(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
+        return enrollmentRepository.findCoursesByStudent(student);
+    }
+
+    @CacheEvict(value = "courses", allEntries = true)
+    public Course updateCourse(Long id, Course courseDetails) {
+        Course course = getCourseById(id);
+        course.setTitle(courseDetails.getTitle());
+        course.setDescription(courseDetails.getDescription());
+        course.setSchedule(courseDetails.getSchedule());
+        return courseRepository.save(course);
+    }
+
+    @CacheEvict(value = "courses", allEntries = true)
+    public void deleteCourse(Long id) {
+        Course course = getCourseById(id);
+        courseRepository.delete(course);
+    }
+
 }

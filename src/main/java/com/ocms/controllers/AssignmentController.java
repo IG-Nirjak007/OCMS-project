@@ -62,7 +62,7 @@ public class AssignmentController {
         Submission submission = assignmentService.gradeSubmission(id, grade);
 
         // Trigger async email alert to student
-        emailService.sendAssignmentGradedAlert(submission.getStudent().getEmail(), submission.getAssignment().getTitle(), grade);
+        emailService.sendAssignmentGradeAlert(submission.getStudent().getEmail(), submission.getAssignment().getTitle(), grade);
 
         return ResponseEntity.ok(submission);
     }
