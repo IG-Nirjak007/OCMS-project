@@ -33,11 +33,8 @@ public class UserService {
      * Throws IllegalArgumentException if the username is already taken.
      */
     public User register(String username, String email, String rawPassword, String roleName) {
-        if (userRepository.existsByUsername(username)) {
-            throw new IllegalArgumentException("Username is already taken: " + username);
-        }
-        if (userRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("Email is already registered: " + email);
+        if (userRepository.findByUsername(username).isPresent()) {
+            throw new IllegalArgumentException("Username is already taken");
         }
 
         String formattedRole = roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName.toUpperCase();

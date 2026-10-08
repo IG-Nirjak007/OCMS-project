@@ -2,7 +2,7 @@ package com.ocms.controllers;
 
 import com.ocms.dto.DTOMapper;
 import com.ocms.dto.UserDTO;
-import com.ocms.models.User;
+import com.ocms.services.AdminService;
 import com.ocms.services.ReportService;
 import com.ocms.services.UserService;
 import org.springframework.http.ResponseEntity;
@@ -23,25 +23,26 @@ import java.util.stream.Collectors;
 public class AdminController {
 
     private final UserService userService;
+    private final AdminService adminService;
     private final ReportService reportService;
 
-    public AdminController(UserService userService, ReportService reportService) {
+    public AdminController(UserService userService, AdminService adminService, ReportService reportService) {
         this.userService = userService;
+        this.adminService = adminService;
         this.reportService = reportService;
     }
 
-    // Update a user's role by ID
+    /**
+     * Update a user's role by ID.
+     * Body: { "role": "STUDENT" | "TEACHER" | "ADMIN" }
+     */
     @PutMapping("/users/{id}/role")
-    public ResponseEntity<?> updateUserRole(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        String role = body.get("role");
-        User user = userService.findById(id);
-        // Role update delegated via UserService re-registration is not available;
-        // expose the user list instead and update role via a direct approach.
-        // For now return the user details to indicate the record was found.
-        return ResponseEntity.ok(Map.of("message", "User role updated successfully.", "userId", id, "role", role));
+    public ResponseEntity<?> updateUserRole(@PathVariable Long id, @RequestBody RoleUpdateRequest request) {
+        UserDTO updatedUser = adminService.updateUserRole(id, request.getRole());
+        return ResponseEntity.ok(updatedUser);
     }
 
-    // Get all users (admin overview)
+    /** Get all users (admin overview). */
     @GetMapping("/users")
     public ResponseEntity<List<UserDTO>> getAllUsers() {
         List<UserDTO> users = userService.findAll()
@@ -51,17 +52,28 @@ public class AdminController {
         return ResponseEntity.ok(users);
     }
 
-    // Expose platform stats / system summary report
+    /** Expose platform stats / system summary report. */
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getAdminStats() {
         String report = reportService.generateSystemSummaryReport();
         return ResponseEntity.ok(Map.of("report", report));
     }
 
-    // Account removal logic
+    /** Remove a user account by ID. */
     @DeleteMapping("/users/{id}")
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
         userService.deleteById(id);
         return ResponseEntity.ok(Map.of("message", "User account removed successfully."));
+    }
+
+    // ── Inner DTO for role-update request body ────────────────────────────────
+
+    public static class RoleUpdateRequest {
+        private String role;
+
+        public RoleUpdateRequest() {}
+
+        public String getRole() { return role; }
+        public void setRole(String role) { this.role = role; }
     }
 }

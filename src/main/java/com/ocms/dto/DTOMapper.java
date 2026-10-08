@@ -11,7 +11,7 @@ public class DTOMapper {
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
-                user.getRoles().stream().map(Role::getName).collect(Collectors.toSet())
+                user.getRoles()
         );
     }
 
