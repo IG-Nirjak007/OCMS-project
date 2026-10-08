@@ -12,69 +12,71 @@ import com.ocms.models.User;
 import com.ocms.repositories.CourseRepository;
 import com.ocms.repositories.EnrollmentRepository;
 import com.ocms.repositories.UserRepository;
+import com.ocms.services.CourseService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/courses")
 public class CourseController {
-    private final CourseRepository courseRepository;
-    private final UserRepository userRepository;
-    private final EnrollmentRepository enrollmentRepository;
 
-    public CourseController(CourseRepository courseRepository,UserRepository userRepository,EnrollmentRepository enrollmentRepository){
-        this.courseRepository = courseRepository;
+    private final CourseService courseService;
+    private final UserRepository userRepository;
+
+    public CourseController(CourseService courseService, UserRepository userRepository) {
+        this.courseService = courseService;
         this.userRepository = userRepository;
-        this.enrollmentRepository =enrollmentRepository;
     }
-    @GetMapping
-    public List<CourseDTO> getAllCourse(){
-        return courseRepository.findAll().stream()
-                .map(DTOMapper::toCourseDTO)
-                .collect(Collectors.toList());
-    }
+
+    // Create course
     @PostMapping
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<CourseDTO> createCourse(@RequestBody CourseCreateDTO dto,@RequestParam Long instructorId){
-        User instructor = userRepository.findById(instructorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Instructor not found"));
-        Course course = new Course();
-        course.setTitle(dto.getTitle());
-        course.setDescription(dto.getDescription());
-        course.setSchedule(dto.getSchedule());
-        course.getInstructors().add(instructor);
-
-        Course saved = courseRepository.save(course);
-        return ResponseEntity.ok(DTOMapper.toCourseDTO(saved));
+    public ResponseEntity<Course> createCourse(@RequestBody Course course, @AuthenticationPrincipal UserDetails userDetails) {
+        User instructor = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        Course createdCourse = courseService.createCourse(course, instructor.getId());
+        return ResponseEntity.ok(createdCourse);
     }
-    @PostMapping("/{courseId}/instructors/{instructorId}")
+
+    // Get course by ID
+    @GetMapping("/{id}")
+    public ResponseEntity<Course> getCourseById(@PathVariable Long id) {
+        return ResponseEntity.ok(courseService.getCourseById(id));
+    }
+
+    // Get student's enrolled courses using JWT principal
+    @GetMapping("/enrolled")
+    public ResponseEntity<List<Course>> getEnrolledCourses(@AuthenticationPrincipal UserDetails userDetails) {
+        User student = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        return ResponseEntity.ok(courseService.getCoursesForStudent(student.getId()));
+    }
+
+    // Secure enrollment deriving student ID from JWT principal
+    @PostMapping("/{id}/enroll")
+    public ResponseEntity<?> enrollStudent(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
+        User student = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        courseService.enrollStudent(id, student.getId());
+        return ResponseEntity.ok(Map.of("message", "Enrolled successfully."));
+    }
+
+    // Update course
+    @PutMapping("/{id}")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<CourseDTO> addInstructor(@PathVariable Long courseId, @PathVariable Long instructorId) {
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
-        User instructor = userRepository.findById(instructorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Instructor not found"));
-
-        course.getInstructors().add(instructor);
-        return ResponseEntity.ok(DTOMapper.toCourseDTO(courseRepository.save(course)));
-    }
-    @PostMapping("/{courseId}/enroll")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<EnrollmentDTO> enrollStudent(@PathVariable Long courseId, @RequestParam Long studentId) {
-        if (enrollmentRepository.existsByStudentIdAndCourseId(studentId, courseId)) {
-            throw new IllegalArgumentException("Student already enrolled");
-        }
-        User student = userRepository.findById(studentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
-
-        Enrollment enrollment = enrollmentRepository.save(new Enrollment(student, course));
-        return ResponseEntity.ok(DTOMapper.toEnrollmentDTO(enrollment));
+    public ResponseEntity<Course> updateCourse(@PathVariable Long id, @RequestBody Course courseDetails) {
+        return ResponseEntity.ok(courseService.updateCourse(id, courseDetails));
     }
 
+    // Delete course
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteCourse(@PathVariable Long id) {
+        courseService.deleteCourse(id);
+        return ResponseEntity.noContent().build();
+    }
 }

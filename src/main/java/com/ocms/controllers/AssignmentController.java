@@ -4,96 +4,66 @@ import com.ocms.dto.*;
 import com.ocms.exception.ResourceNotFoundException;
 import com.ocms.models.*;
 import com.ocms.repositories.*;
+import com.ocms.services.AssignmentService;
+import com.ocms.services.EmailService;
 import com.ocms.services.FileStorageService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api")
 public class AssignmentController {
 
-    private final AssignmentRepository assignmentRepository;
-    private final SubmissionRepository submissionRepository;
-    private final CourseRepository courseRepository;
+    private final AssignmentService assignmentService;
     private final UserRepository userRepository;
-    private final FileStorageService fileStorageService;
+    private final EmailService emailService;
 
-    public AssignmentController(AssignmentRepository assignmentRepository, SubmissionRepository submissionRepository,
-                                CourseRepository courseRepository, UserRepository userRepository,
-                                FileStorageService fileStorageService) {
-        this.assignmentRepository = assignmentRepository;
-        this.submissionRepository = submissionRepository;
-        this.courseRepository = courseRepository;
+    public AssignmentController(AssignmentService assignmentService, UserRepository userRepository, EmailService emailService) {
+        this.assignmentService = assignmentService;
         this.userRepository = userRepository;
-        this.fileStorageService = fileStorageService;
+        this.emailService = emailService;
     }
 
-    @GetMapping("/courses/{courseId}/assignments")
-    public List<AssignmentDTO> getAssignmentsByCourse(@PathVariable Long courseId) {
-        return assignmentRepository.findByCourseId(courseId).stream()
-                .map(DTOMapper::toAssignmentDTO)
-                .collect(Collectors.toList());
+    // Submit assignment using JSON payload
+    @PostMapping("/assignments/submit")
+    public ResponseEntity<?> submitAssignment(@RequestBody Map<String, Object> payload) {
+        Long studentId = Long.valueOf(payload.get("studentId").toString());
+        Long assignmentId = Long.valueOf(payload.get("assignmentId").toString());
+        String fileUrl = (String) payload.get("fileUrl");
+
+        // We assume assignmentService has a method to save this
+        assignmentService.saveSubmissionJson(assignmentId, studentId, fileUrl);
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "message", "Assignment submitted successfully"
+        ));
     }
 
-    @PostMapping("/courses/{courseId}/assignments")
+    // Get all submissions for an assignment
+    @GetMapping("/assignments/{id}/submissions")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<AssignmentDTO> createAssignment(@PathVariable Long courseId, @RequestBody AssignmentDTO dto) {
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
-
-        Assignment assignment = new Assignment();
-        assignment.setTitle(dto.getTitle());
-        assignment.setDescription(dto.getDescription());
-        assignment.setDueDate(dto.getDueDate());
-        assignment.setCourse(course);
-
-        Assignment saved = assignmentRepository.save(assignment);
-        return ResponseEntity.ok(DTOMapper.toAssignmentDTO(saved));
+    public ResponseEntity<List<Submission>> getSubmissions(@PathVariable Long id) {
+        return ResponseEntity.ok(assignmentService.getSubmissionsForAssignment(id));
     }
 
-    @PostMapping("/assignments/{assignmentId}/submit")
-    @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<SubmissionDTO> submitAssignment(
-            @PathVariable Long assignmentId,
-            @RequestParam("studentId") Long studentId,
-            @RequestParam(value = "file", required = false) MultipartFile file) {
-
-        Assignment assignment = assignmentRepository.findById(assignmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found"));
-        User student = userRepository.findById(studentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
-
-        Submission submission = new Submission();
-        submission.setAssignment(assignment);
-        submission.setStudent(student);
-
-        if (file != null && !file.isEmpty()) {
-            submission.setFilePath(fileStorageService.store(file));
-        }
-
-        Submission saved = submissionRepository.save(submission);
-        return ResponseEntity.ok(DTOMapper.toSubmissionDTO(saved));
-    }
-
-    @PutMapping("/submissions/{submissionId}/grade")
+    // Grade submission with email alert trigger
+    @PutMapping("/submissions/{id}/grade")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<SubmissionDTO> gradeSubmission(
-            @PathVariable Long submissionId,
-            @RequestParam Integer grade,
-            @RequestParam String feedback) {
+    public ResponseEntity<?> gradeSubmission(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        String grade = body.get("grade");
+        Submission submission = assignmentService.gradeSubmission(id, grade);
 
-        Submission submission = submissionRepository.findById(submissionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Submission not found"));
+        // Trigger async email alert to student
+        emailService.sendAssignmentGradedAlert(submission.getStudent().getEmail(), submission.getAssignment().getTitle(), grade);
 
-        submission.setGrade(grade);
-        submission.setFeedback(feedback);
-
-        Submission updated = submissionRepository.save(submission);
-        return ResponseEntity.ok(DTOMapper.toSubmissionDTO(updated));
+        return ResponseEntity.ok(submission);
     }
 }

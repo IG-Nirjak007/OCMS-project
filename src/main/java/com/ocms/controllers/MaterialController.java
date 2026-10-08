@@ -8,7 +8,9 @@ import com.ocms.models.Course;
 import com.ocms.models.Material;
 import com.ocms.repositories.CourseRepository;
 import com.ocms.repositories.MaterialRepository;
+import com.ocms.services.EmailService;
 import com.ocms.services.FileStorageService;
+import com.ocms.services.MaterialService;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -23,61 +25,45 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/courses/{courseId}/materials")
+@RequestMapping("/api")
 public class MaterialController {
 
-    private final MaterialRepository materialRepository;
-    private final CourseRepository courseRepository;
-    private final FileStorageService fileStorageService;
+    private final MaterialService materialService;
+    private final EmailService emailService;
 
-    public MaterialController(MaterialRepository materialRepository, CourseRepository courseRepository, FileStorageService fileStorageService) {
-        this.materialRepository = materialRepository;
-        this.courseRepository = courseRepository;
-        this.fileStorageService = fileStorageService;
+    public MaterialController(MaterialService materialService, EmailService emailService) {
+        this.materialService = materialService;
+        this.emailService = emailService;
     }
-    @GetMapping
-    public List<MaterialDTO> getMaterials(@PathVariable Long courseId) {
-        return materialRepository.findByCourseId(courseId).stream()
-                .map(DTOMapper::toMaterialDTO)
-                .collect(Collectors.toList());
+
+    // Get all materials for a specific course
+    @GetMapping("/courses/{courseId}/materials")
+    public ResponseEntity<List<Material>> getMaterialsByCourse(@PathVariable Long courseId) {
+        return ResponseEntity.ok(materialService.getMaterialsByCourse(courseId));
     }
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+
+    // Upload new material and trigger async email notification to enrolled students
+    @PostMapping("/courses/{courseId}/materials")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<MaterialDTO> uploadMaterial(
-            @PathVariable Long courseId,
-            @RequestParam("title") String title,
-            @RequestParam("contentDescription") String contentDescription,
-            @RequestParam(value = "file", required = false) MultipartFile file) {
+    public ResponseEntity<Material> uploadMaterial(@PathVariable Long courseId,
+                                                   @RequestParam("title") String title,
+                                                   @RequestParam("file") MultipartFile file) {
+        Material savedMaterial = materialService.saveMaterial(courseId, title, file);
 
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
-
-        Material material = new Material();
-        material.setTitle(title);
-        material.setContentDescription(contentDescription);
-        material.setCourse(course);
-
-        if (file != null && !file.isEmpty()) {
-            material.setFilePath(fileStorageService.store(file));
+        // Fetch enrolled student email addresses and trigger async email notifications
+        List<String> studentEmails = materialService.getEnrolledStudentEmails(courseId);
+        for (String email : studentEmails) {
+            emailService.sendMaterialUploadAlert(email, savedMaterial.getCourse().getTitle(), savedMaterial.getTitle());
         }
 
-        Material saved = materialRepository.save(material);
-        return ResponseEntity.ok(DTOMapper.toMaterialDTO(saved));
+        return ResponseEntity.ok(savedMaterial);
     }
-    @GetMapping("/{materialId}/download")
-    public ResponseEntity<Resource> downloadMaterial(@PathVariable Long materialId) throws Exception {
-        Material material = materialRepository.findById(materialId)
-                .orElseThrow(() -> new ResourceNotFoundException("Material not found"));
 
-        if (material.getFilePath() == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        Path path = Path.of(material.getFilePath());
-        Resource resource = new UrlResource(path.toUri());
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
-                .body(resource);
+    // Delete material endpoint (Required by frontend materialApi.js)
+    @DeleteMapping("/materials/{id}")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteMaterial(@PathVariable Long id) {
+        materialService.deleteMaterial(id);
+        return ResponseEntity.noContent().build();
     }
 }
