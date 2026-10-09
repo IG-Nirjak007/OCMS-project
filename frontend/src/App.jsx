@@ -1,79 +1,70 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import Navbar from './components/layout/Navbar';
-import Sidebar from './components/layout/Sidebar';
-import PrivateRoute from './components/layout/PrivateRoute';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// Pages
+// Pages - Auth
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+
+// Pages - Shared
+import LandingPage from './pages/LandingPage';
+
+// Pages - Student
 import StudentDashboardPage from './pages/student/StudentDashboardPage';
+import MyCoursesPage from './pages/student/MyCoursesPage';
 import CourseDetailPage from './pages/student/CourseDetailPage';
 import SubmitAssignmentPage from './pages/student/SubmitAssignmentPage';
+
+// Pages - Teacher
 import TeacherDashboardPage from './pages/teacher/TeacherDashboardPage';
 import ManageMaterialsPage from './pages/teacher/ManageMaterialsPage';
+import CreateAssignmentPage from './pages/teacher/CreateAssignmentPage';
 import GradeSubmissionsPage from './pages/teacher/GradeSubmissionsPage';
+
+// Pages - Admin
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
-import ManageUsersPage from './pages/admin/ManageUsersPage';
-import ManageCoursesPage from './pages/admin/ManageCoursesPage';
+
+// Components
+import PrivateRoute from './components/layout/PrivateRoute';
 import NotFoundPage from './pages/shared/NotFoundPage';
 import UnauthorizedPage from './pages/shared/UnauthorizedPage';
 
-const MainLayout = () => (
-    <>
-        <Navbar />
-        <div className="main-layout">
-            <Sidebar />
-            <main className="content">
-                <Outlet />
-            </main>
-        </div>
-    </>
-);
-
 function App() {
-    return (
-        <AuthProvider>
-            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                <Routes>
-                    {/* Public Routes without Navbar/Sidebar */}
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                    <Route path="/unauthorized" element={<UnauthorizedPage />} />
+  return (
+    <Router>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-                    {/* Protected Routes with Navbar/Sidebar Layout */}
-                    <Route element={<MainLayout />}>
-                        {/* Student Routes */}
-                        <Route element={<PrivateRoute allowedRoles={['ROLE_STUDENT']} />}>
-                            <Route path="/" element={<StudentDashboardPage />} />
-                            <Route path="/courses/:id" element={<CourseDetailPage />} />
-                            <Route path="/student/submit/:assignmentId" element={<SubmitAssignmentPage />} />
-                        </Route>
+        {/* Student Routes */}
+        <Route element={<PrivateRoute allowedRoles={['ROLE_STUDENT', 'STUDENT']} />}>
+          <Route path="/student/dashboard" element={<StudentDashboardPage />} />
+          <Route path="/my-courses" element={<MyCoursesPage />} />
+          <Route path="/courses/:courseId" element={<CourseDetailPage />} />
+          <Route path="/assignments/:assignmentId/submit" element={<SubmitAssignmentPage />} />
+        </Route>
 
-                        {/* Instructor Routes */}
-                        <Route element={<PrivateRoute allowedRoles={['ROLE_TEACHER']} />}>
-                            <Route path="/teacher" element={<TeacherDashboardPage />} />
-                            <Route path="/teacher/materials" element={<ManageMaterialsPage />} />
-                            <Route path="/teacher/submissions/:id" element={<GradeSubmissionsPage />} />
-                        </Route>
+        {/* Teacher Routes */}
+        <Route element={<PrivateRoute allowedRoles={['ROLE_TEACHER', 'TEACHER']} />}>
+          <Route path="/teacher/dashboard" element={<TeacherDashboardPage />} />
+          <Route path="/courses/:courseId/materials" element={<ManageMaterialsPage />} />
+          <Route path="/courses/:courseId/create-assignment" element={<CreateAssignmentPage />} />
+          <Route path="/assignments/:assignmentId/grade" element={<GradeSubmissionsPage />} />
+        </Route>
 
-                        {/* Admin Routes */}
-                        <Route element={<PrivateRoute allowedRoles={['ROLE_ADMIN']} />}>
-                            <Route path="/admin" element={<AdminDashboardPage />} />
-                            <Route path="/admin/users" element={<ManageUsersPage />} />
-                            <Route path="/admin/courses" element={<ManageCoursesPage />} />
-                        </Route>
-                    </Route>
+        {/* Admin Routes */}
+        <Route element={<PrivateRoute allowedRoles={['ROLE_ADMIN', 'ADMIN']} />}>
+          <Route path="/admin" element={<AdminDashboardPage />} />
+        </Route>
 
-                    {/* Fallback Route */}
-                    <Route path="*" element={<NotFoundPage />} />
-                </Routes>
-            </BrowserRouter>
-        </AuthProvider>
-    );
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Router>
+  );
 }
 
 export default App;
