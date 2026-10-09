@@ -32,21 +32,6 @@ public class AssignmentController {
         this.emailService = emailService;
     }
 
-    // Submit assignment using JSON payload
-    @PostMapping("/assignments/submit")
-    public ResponseEntity<?> submitAssignment(@RequestBody Map<String, Object> payload) {
-        Long studentId = Long.valueOf(payload.get("studentId").toString());
-        Long assignmentId = Long.valueOf(payload.get("assignmentId").toString());
-        String fileUrl = (String) payload.get("fileUrl");
-
-        // We assume assignmentService has a method to save this
-        assignmentService.saveSubmissionJson(assignmentId, studentId, fileUrl);
-        return ResponseEntity.ok(Map.of(
-                "status", "success",
-                "message", "Assignment submitted successfully"
-        ));
-    }
-
     // Get all submissions for an assignment
     @GetMapping("/assignments/{id}/submissions")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
@@ -54,16 +39,22 @@ public class AssignmentController {
         return ResponseEntity.ok(assignmentService.getSubmissionsForAssignment(id));
     }
 
-    // Grade submission with email alert trigger
-    @PutMapping("/submissions/{id}/grade")
+    // CRUD: Create Assignment
+    @PostMapping("/assignments")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<?> gradeSubmission(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        String grade = body.get("grade");
-        Submission submission = assignmentService.gradeSubmission(id, grade);
-
-        // Trigger async email alert to student
-        emailService.sendAssignmentGradeAlert(submission.getStudent().getEmail(), submission.getAssignment().getTitle(), grade);
-
-        return ResponseEntity.ok(submission);
+    public ResponseEntity<Assignment> createAssignment(@RequestBody Map<String, Object> payload) {
+        Long courseId = Long.valueOf(payload.get("courseId").toString());
+        String title = (String) payload.get("title");
+        String description = (String) payload.get("description");
+        String dueDateStr = (String) payload.get("dueDate");
+        java.time.LocalDateTime dueDate = java.time.LocalDateTime.parse(dueDateStr);
+        
+        return ResponseEntity.ok(assignmentService.create(courseId, title, description, dueDate));
+    }
+    
+    // CRUD: Get all assignments for a course
+    @GetMapping("/courses/{courseId}/assignments")
+    public ResponseEntity<List<Assignment>> getAssignmentsByCourse(@PathVariable Long courseId) {
+        return ResponseEntity.ok(assignmentService.findByCourse(courseId));
     }
 }

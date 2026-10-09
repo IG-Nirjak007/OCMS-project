@@ -4,12 +4,14 @@ package com.ocms.services;
 import com.ocms.exception.ResourceNotFoundException;
 import com.ocms.models.Assignment;
 import com.ocms.models.Course;
+import com.ocms.models.Submission;
 import com.ocms.repositories.AssignmentRepository;
 import com.ocms.repositories.CourseRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+
 
 /**
  * Service for creating and querying assignments.
@@ -55,27 +57,9 @@ public class AssignmentService {
         return assignmentRepository.findByDueDateBefore(LocalDateTime.now());
     }
 
-    public com.ocms.models.Submission saveSubmissionJson(Long assignmentId, Long studentId, String fileUrl) {
-        Assignment assignment = assignmentRepository.findById(assignmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found: " + assignmentId));
-        com.ocms.models.User student = userRepository.findById(studentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + studentId));
-        
-        com.ocms.models.Submission submission = new com.ocms.models.Submission(student, assignment);
-        submission.setFilePath(fileUrl);
-        return submissionRepository.save(submission);
-    }
-
-    public List<com.ocms.models.Submission> getSubmissionsForAssignment(Long assignmentId) {
+    public List<Submission> getSubmissionsForAssignment(Long assignmentId) {
         Assignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment not found: " + assignmentId));
         return submissionRepository.findByAssignment(assignment);
-    }
-
-    public com.ocms.models.Submission gradeSubmission(Long submissionId, String grade) {
-        com.ocms.models.Submission submission = submissionRepository.findById(submissionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Submission not found: " + submissionId));
-        submission.setGrade(Integer.parseInt(grade));
-        return submissionRepository.save(submission);
     }
 }

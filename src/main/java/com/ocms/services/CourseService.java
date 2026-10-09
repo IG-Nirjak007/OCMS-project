@@ -53,27 +53,12 @@ public class CourseService {
         return courseRepository.save(course);
     }
 
-    public Enrollment enrollStudent(Long courseId, Long studentId) {
-        if (enrollmentRepository.existsByStudentIdAndCourseId(studentId, courseId)) {
-            throw new IllegalArgumentException("Student already enrolled in this course");
-        }
-        User student = userRepository.findById(studentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
-        return enrollmentRepository.save(new Enrollment(student, course));
-    }
 
     public Course getCourseById(Long id) {
         return courseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with id " + id));
     }
 
-    public List<Course> getCoursesForStudent(Long studentId) {
-        User student = userRepository.findById(studentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
-        return enrollmentRepository.findCoursesByStudent(student);
-    }
 
     @CacheEvict(value = "courses", allEntries = true)
     public Course updateCourse(Long id, Course courseDetails) {

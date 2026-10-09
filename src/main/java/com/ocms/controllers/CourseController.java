@@ -50,20 +50,6 @@ public class CourseController {
         return ResponseEntity.ok(courseService.getCourseById(id));
     }
 
-    // Get student's enrolled courses using JWT principal
-    @GetMapping("/enrolled")
-    public ResponseEntity<List<Course>> getEnrolledCourses(@AuthenticationPrincipal UserDetails userDetails) {
-        User student = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        return ResponseEntity.ok(courseService.getCoursesForStudent(student.getId()));
-    }
-
-    // Secure enrollment deriving student ID from JWT principal
-    @PostMapping("/{id}/enroll")
-    public ResponseEntity<?> enrollStudent(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
-        User student = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        courseService.enrollStudent(id, student.getId());
-        return ResponseEntity.ok(Map.of("message", "Enrolled successfully."));
-    }
 
     // Update course
     @PutMapping("/{id}")

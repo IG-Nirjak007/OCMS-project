@@ -40,7 +40,7 @@ public class AdminService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
-        // Normalise to "ROLE_XXX" format
+        // Normalize to "ROLE_XXX" format
         String formattedRole = roleName.toUpperCase();
         if (!formattedRole.startsWith("ROLE_")) {
             formattedRole = "ROLE_" + formattedRole;
