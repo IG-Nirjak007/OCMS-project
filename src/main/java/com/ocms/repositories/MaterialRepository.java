@@ -17,4 +17,6 @@ import java.util.List;
 @Repository
 public interface MaterialRepository extends JpaRepository<Material, Long> {
     List<Material> findByCourseId(Long courseId);
+    List<Material> findByCourse(Course course);
+    void deleteByCourse(Course course);
 }

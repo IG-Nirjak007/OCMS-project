@@ -23,39 +23,59 @@ public class MaterialService {
     private final MaterialRepository materialRepository;
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final FileStorageService fileStorageService;
 
-    public MaterialService(MaterialRepository materialRepository, CourseRepository courseRepository, EnrollmentRepository enrollmentRepository) {
+    public MaterialService(MaterialRepository materialRepository, 
+                           CourseRepository courseRepository, 
+                           EnrollmentRepository enrollmentRepository,
+                           FileStorageService fileStorageService) {
         this.materialRepository = materialRepository;
         this.courseRepository = courseRepository;
         this.enrollmentRepository = enrollmentRepository;
+        this.fileStorageService = fileStorageService;
     }
 
     public List<Material> getMaterialsByCourse(Long courseId) {
         return materialRepository.findByCourseId(courseId);
     }
 
-    public Material saveMaterial(Long courseId, String title, MultipartFile file) {
+    public Material getMaterialById(Long id) {
+        return materialRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
+    }
+
+    public Material saveMaterial(Long courseId, String title, String description, MultipartFile file) {
         Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new RuntimeException("Course not found with id: " + courseId));
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + courseId));
 
         Material material = new Material();
         material.setTitle(title);
-        material.setFilePath(file.getOriginalFilename());
+        material.setContentDescription(description);
+        if (file != null && !file.isEmpty()) {
+            String storedFileName = fileStorageService.storeFile(file);
+            material.setFilePath(storedFileName);
+        }
         material.setCourse(course);
 
         return materialRepository.save(material);
     }
 
+    public Material saveMaterial(Long courseId, String title, MultipartFile file) {
+        return saveMaterial(courseId, title, null, file);
+    }
+
     public void deleteMaterial(Long materialId) {
-        if (!materialRepository.existsById(materialId)) {
-            throw new RuntimeException("Material not found with id: " + materialId);
+        Material material = materialRepository.findById(materialId)
+                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + materialId));
+        if (material.getFilePath() != null) {
+            fileStorageService.deleteFile(material.getFilePath());
         }
-        materialRepository.deleteById(materialId);
+        materialRepository.delete(material);
     }
 
     public List<String> getEnrolledStudentEmails(Long courseId) {
         Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new RuntimeException("Course not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + courseId));
 
         return enrollmentRepository.findByCourse(course).stream()
                 .map(enrollment -> enrollment.getStudent().getEmail())

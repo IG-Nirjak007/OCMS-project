@@ -17,13 +17,21 @@ public class SubmissionService {
     private final SubmissionRepository submissionRepository;
     private final AssignmentRepository assignmentRepository;
     private final UserRepository userRepository;
+    private final FileStorageService fileStorageService;
 
     public SubmissionService(SubmissionRepository submissionRepository, 
                              AssignmentRepository assignmentRepository, 
-                             UserRepository userRepository) {
+                             UserRepository userRepository,
+                             FileStorageService fileStorageService) {
         this.submissionRepository = submissionRepository;
         this.assignmentRepository = assignmentRepository;
         this.userRepository = userRepository;
+        this.fileStorageService = fileStorageService;
+    }
+
+    public Submission getById(Long id) {
+        return submissionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission not found: " + id));
     }
 
     public Submission submitAssignment(Long assignmentId, Long studentId, String fileUrl, String description) {
@@ -32,16 +40,26 @@ public class SubmissionService {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + studentId));
         
-        // Ensure student hasn't submitted yet, or update existing. We'll check if exists.
         Submission submission = submissionRepository.findByStudentAndAssignment(student, assignment)
                 .orElse(new Submission(student, assignment));
         
-        submission.setFilePath(fileUrl);
+        if (fileUrl != null && !fileUrl.isBlank()) {
+            submission.setFilePath(fileUrl);
+        }
         if (description != null) {
             submission.setDescription(description);
         }
+        submission.setSubmittedAt(java.time.LocalDateTime.now());
         
         return submissionRepository.save(submission);
+    }
+
+    public Submission submitAssignmentWithFile(Long assignmentId, Long studentId, org.springframework.web.multipart.MultipartFile file, String description) {
+        String storedFileName = null;
+        if (file != null && !file.isEmpty()) {
+            storedFileName = fileStorageService.storeFile(file);
+        }
+        return submitAssignment(assignmentId, studentId, storedFileName, description);
     }
 
     public List<Submission> getSubmissionsForAssignment(Long assignmentId) {

@@ -57,9 +57,30 @@ public class AssignmentService {
         return assignmentRepository.findByDueDateBefore(LocalDateTime.now());
     }
 
+    public Assignment getById(Long id) {
+        return assignmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found: " + id));
+    }
+
+    public Assignment update(Long id, String title, String description, LocalDateTime dueDate) {
+        Assignment assignment = getById(id);
+        if (title != null) assignment.setTitle(title);
+        if (description != null) assignment.setDescription(description);
+        if (dueDate != null) assignment.setDueDate(dueDate);
+        return assignmentRepository.save(assignment);
+    }
+
+    public void delete(Long id) {
+        Assignment assignment = getById(id);
+        List<Submission> submissions = submissionRepository.findByAssignment(assignment);
+        if (!submissions.isEmpty()) {
+            submissionRepository.deleteAll(submissions);
+        }
+        assignmentRepository.delete(assignment);
+    }
+
     public List<Submission> getSubmissionsForAssignment(Long assignmentId) {
-        Assignment assignment = assignmentRepository.findById(assignmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Assignment not found: " + assignmentId));
+        Assignment assignment = getById(assignmentId);
         return submissionRepository.findByAssignment(assignment);
     }
 }

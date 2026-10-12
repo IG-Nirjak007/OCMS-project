@@ -21,10 +21,12 @@ public class FileStorageService {
     public String storeFile(MultipartFile file) {
         if (file == null || file.isEmpty()) return null;
         try {
-            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            String originalName = Paths.get(file.getOriginalFilename() != null ? file.getOriginalFilename() : "file").getFileName().toString();
+            String cleanName = originalName.replaceAll("[^a-zA-Z0-9._-]", "_");
+            String fileName = System.currentTimeMillis() + "_" + cleanName;
             Path targetLocation = this.storageLocation.resolve(fileName);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-            return targetLocation.toString();
+            return fileName;
         } catch (IOException e) {
             throw new RuntimeException("Failed to store file", e);
         }
@@ -35,7 +37,28 @@ public class FileStorageService {
         return storeFile(file);
     }
 
-    public Path loadFile(String filePath) {
-        return Paths.get(filePath);
+    public Path loadFile(String filePathOrName) {
+        if (filePathOrName == null) return null;
+        Path path = Paths.get(filePathOrName);
+        if (Files.exists(path)) {
+            return path;
+        }
+        Path resolved = this.storageLocation.resolve(path.getFileName().toString()).normalize();
+        if (Files.exists(resolved)) {
+            return resolved;
+        }
+        return resolved;
+    }
+
+    public boolean deleteFile(String filePathOrName) {
+        if (filePathOrName == null) return false;
+        try {
+            Path file = loadFile(filePathOrName);
+            if (file != null && Files.exists(file)) {
+                return Files.deleteIfExists(file);
+            }
+        } catch (IOException ignored) {
+        }
+        return false;
     }
 }
