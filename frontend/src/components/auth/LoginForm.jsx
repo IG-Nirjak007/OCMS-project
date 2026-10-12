@@ -1,32 +1,65 @@
 import React, { useState } from 'react';
-import { loginApi } from '../../api/authApi';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
 const LoginForm = () => {
-    const [credentials, setCredentials] = useState({ username: '', password: '' });
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+
     const { login } = useAuth();
+    const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const res = await loginApi(credentials);
-        login(res.data.token, res.data.user);
+        setError('');
+
+        try {
+            const data = await login(email, password);
+            const roles = data?.user?.roles || [];
+
+            // Role-based redirect logic
+            if (roles.includes('ROLE_ADMIN') || roles.includes('ADMIN')) {
+                navigate('/admin');
+            } else if (roles.includes('ROLE_TEACHER') || roles.includes('TEACHER')) {
+                navigate('/teacher');
+            } else {
+                navigate('/my-courses');
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Invalid email or password');
+        }
     };
 
     return (
-        <form onSubmit={handleSubmit}>
-            <input
-                type="text"
-                placeholder="Username"
-                onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
-            />
-            <input
-                type="password"
-                placeholder="Password"
-                onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-            />
-            <button type="submit">Login</button>
-        </form>
+        <div className="login-form-container">
+            <h2>Login to OCMS</h2>
+            {error && <div className="error-banner">{error}</div>}
+            <form onSubmit={handleSubmit}>
+                <div className="form-group">
+                    <label>Email Address</label>
+                    <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        placeholder="enter your email"
+                    />
+                </div>
+                <div className="form-group">
+                    <label>Password</label>
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        placeholder="enter your password"
+                    />
+                </div>
+                <button type="submit" className="btn-primary">Sign In</button>
+            </form>
+        </div>
     );
 };
 
-export default LoginForm;// LoginForm component stub
+export default LoginForm;

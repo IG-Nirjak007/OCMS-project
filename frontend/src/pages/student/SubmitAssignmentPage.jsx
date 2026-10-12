@@ -1,71 +1,133 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { submitAssignment } from '../../api/assignmentApi';
+import Navbar from '../../components/layout/Navbar';
+import Sidebar from '../../components/layout/Sidebar';
+import Footer from '../../components/layout/Footer';
+import client from '../../api/client';
 
 const SubmitAssignmentPage = () => {
-    const { assignmentId } = useParams();
-    const [file, setFile] = useState(null);
-    const [uploading, setUploading] = useState(false);
-    const [error, setError] = useState('');
-    const navigate = useNavigate();
+  const { assignmentId } = useParams();
+  const navigate = useNavigate();
+  const [assignment, setAssignment] = useState(null);
+  const [mySubmission, setMySubmission] = useState(null);
+  const [description, setDescription] = useState('');
+  const [fileUrl, setFileUrl] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
 
-    const handleFileChange = (e) => {
-        const selectedFile = e.target.files[0];
-        if (selectedFile) {
-            if (selectedFile.size > 10 * 1024 * 1024) { // 10MB limit
-                setError('File size must be under 10MB.');
-                return;
-            }
-            setError('');
-            setFile(selectedFile);
-        }
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Get submissions to check if already submitted
+        const subRes = await client.get('/submissions/me');
+        const mySub = (subRes.data || []).find(
+          (s) => s.assignment?.id === Number(assignmentId)
+        );
+        setMySubmission(mySub || null);
+        if (mySub?.description) setDescription(mySub.description);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     };
+    fetchData();
+  }, [assignmentId]);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!file) {
-            setError('Please select a file to submit.');
-            return;
-        }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSubmitting(true);
+    try {
+      const res = await client.post('/submissions', {
+        assignmentId: Number(assignmentId),
+        description,
+        fileUrl,
+      });
+      setMySubmission(res.data?.submission || res.data);
+      setSuccess('Submitted successfully!');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Submission failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-        setUploading(true);
-        setError('');
+  return (
+    <div className="app-shell">
+      <Navbar />
+      <div className="page-layout">
+        <Sidebar />
+        <main className="main-content">
+          <button className="btn btn-ghost btn-sm mb-4" onClick={() => navigate(-1)}>
+            ← Back
+          </button>
 
-        const formData = new FormData();
-        formData.append('file', file);
+          <div style={{ maxWidth: '640px', margin: '0 auto' }}>
+            <div className="page-header">
+              <div>
+                <h1 className="page-title">Submit Assignment</h1>
+                <p className="page-subtitle">Assignment #{assignmentId}</p>
+              </div>
+            </div>
 
-        try {
-            await submitAssignment(assignmentId, formData);
-            navigate('/student', { state: { message: 'Assignment submitted successfully!' } });
-        } catch (err) {
-            setError(err.response?.data?.message || 'File upload failed.');
-        } finally {
-            setUploading(false);
-        }
-    };
+            {/* Already graded */}
+            {mySubmission?.grade != null && (
+              <div className="alert alert-success mb-4">
+                ✅ Graded: <strong>{mySubmission.grade}</strong>/100
+                {mySubmission.feedback && (
+                  <p style={{ marginTop: '0.4rem' }}>Feedback: {mySubmission.feedback}</p>
+                )}
+              </div>
+            )}
 
-    return (
-        <div className="page-container">
-            <h2>Submit Assignment</h2>
-            {error && <div className="error-alert">{error}</div>}
-            <form onSubmit={handleSubmit} className="upload-form">
-                <div className="file-input-group">
-                    <label htmlFor="file-upload">Select PDF/Document File:</label>
-                    <input
-                        id="file-upload"
-                        type="file"
-                        accept=".pdf,.doc,.docx"
-                        onChange={handleFileChange}
-                        disabled={uploading}
+            {success && <div className="alert alert-success mb-4">✓ {success}</div>}
+            {error && <div className="alert alert-error mb-4">⚠ {error}</div>}
+
+            {loading ? (
+              <div className="loading-spinner"><div className="spinner" /></div>
+            ) : (
+              <div className="card">
+                <form onSubmit={handleSubmit} className="modal-form">
+                  <div className="form-group">
+                    <label className="form-label">Description / Answer</label>
+                    <textarea
+                      className="form-textarea"
+                      placeholder="Describe your submission or write your answer..."
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={5}
                     />
-                </div>
-                {file && <p className="file-info">Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB)</p>}
-                <button type="submit" disabled={uploading || !file}>
-                    {uploading ? 'Uploading...' : 'Submit File'}
-                </button>
-            </form>
-        </div>
-    );
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">File URL (optional)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="https://drive.google.com/..."
+                      value={fileUrl}
+                      onChange={(e) => setFileUrl(e.target.value)}
+                    />
+                    <span className="form-hint">Paste a Google Drive, GitHub, or other link to your file</span>
+                  </div>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={submitting || !description.trim()}
+                  >
+                    {submitting ? 'Submitting...' : mySubmission ? 'Resubmit' : 'Submit Assignment'}
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+      <Footer />
+    </div>
+  );
 };
 
 export default SubmitAssignmentPage;

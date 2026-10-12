@@ -1,18 +1,46 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+
+const studentLinks = [
+  { to: '/student/dashboard', icon: '🏠', label: 'Dashboard' },
+  { to: '/my-courses', icon: '📚', label: 'My Courses' },
+];
+
+const teacherLinks = [
+  { to: '/teacher/dashboard', icon: '🏠', label: 'Dashboard' },
+];
+
+const adminLinks = [
+  { to: '/admin', icon: '⚙️', label: 'Admin Panel' },
+];
 
 const Sidebar = () => {
-    const { user } = useAuth();
+  const { isTeacher, isAdmin, isStudent } = useAuth();
 
-    return (
-        <aside className="sidebar">
-            <Link to="/">Dashboard</Link>
-            {user?.roles?.includes('ROLE_STUDENT') && <Link to="/my-courses">My Courses</Link>}
-            {user?.roles?.includes('ROLE_TEACHER') && <Link to="/teacher/materials">Manage Materials</Link>}
-            {user?.roles?.includes('ROLE_ADMIN') && <Link to="/admin/users">Manage Users</Link>}
-        </aside>
-    );
+  const links = isAdmin?.()
+    ? adminLinks
+    : isTeacher?.()
+    ? teacherLinks
+    : studentLinks;
+
+  return (
+    <aside className="sidebar">
+      <span className="sidebar-section-label">Navigation</span>
+      {links.map((link) => (
+        <NavLink
+          key={link.to}
+          to={link.to}
+          className={({ isActive }) =>
+            `sidebar-link${isActive ? ' active' : ''}`
+          }
+        >
+          <span className="icon">{link.icon}</span>
+          {link.label}
+        </NavLink>
+      ))}
+    </aside>
+  );
 };
 
-export default Sidebar;// Sidebar layout component stub
+export default Sidebar;
