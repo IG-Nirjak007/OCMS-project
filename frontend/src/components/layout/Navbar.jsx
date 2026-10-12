@@ -46,7 +46,7 @@ const Navbar = () => {
             >
               Classroom
             </NavLink>
-            <div className="navbar-user">
+            <div className="navbar-user" style={{ cursor: 'pointer' }} onClick={() => navigate('/profile')} title="View profile">
               <div className="navbar-avatar">
                 {user.username?.charAt(0).toUpperCase() || '?'}
               </div>

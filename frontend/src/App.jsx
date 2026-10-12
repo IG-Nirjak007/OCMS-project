@@ -8,6 +8,7 @@ import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 
 // Pages - Shared
 import LandingPage from './pages/LandingPage';
+import ProfilePage from './pages/ProfilePage';
 
 // Pages - Student
 import StudentDashboardPage from './pages/student/StudentDashboardPage';
@@ -59,6 +60,11 @@ function App() {
         {/* Admin Routes */}
         <Route element={<PrivateRoute allowedRoles={['ROLE_ADMIN', 'ADMIN']} />}>
           <Route path="/admin" element={<AdminDashboardPage />} />
+        </Route>
+
+        {/* Authenticated Shared Routes */}
+        <Route element={<PrivateRoute allowedRoles={['ROLE_STUDENT', 'STUDENT', 'ROLE_TEACHER', 'TEACHER', 'ROLE_ADMIN', 'ADMIN']} />}>
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />
