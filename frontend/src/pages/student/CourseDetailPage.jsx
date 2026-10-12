@@ -4,6 +4,7 @@ import Navbar from '../../components/layout/Navbar';
 import Sidebar from '../../components/layout/Sidebar';
 import Footer from '../../components/layout/Footer';
 import client from '../../api/client';
+import { downloadAuthenticatedFile } from '../../utils/fileDownloader';
 
 const CourseDetailPage = () => {
   const { courseId } = useParams();
@@ -63,7 +64,17 @@ const CourseDetailPage = () => {
             <div className="page-header">
               <div>
                 <h1 className="page-title">{course.title}</h1>
-                <p className="page-subtitle">{course.description}</p>
+                <p className="page-subtitle">{course.description || 'No course description provided.'}</p>
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                  {course.schedule && (
+                    <span className="badge badge-primary">🗓 Schedule: {course.schedule}</span>
+                  )}
+                  {course.instructors && course.instructors.length > 0 && (
+                    <span className="badge badge-secondary">
+                      👨‍🏫 Instructors: {course.instructors.map((i) => i.username || i.email).join(', ')}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -72,23 +83,29 @@ const CourseDetailPage = () => {
             {/* Materials */}
             <div className="card">
               <div className="card-header">
-                <h2 className="card-title">📁 Materials ({materials.length})</h2>
+                <h2 className="card-title">📁 Course Materials ({materials.length})</h2>
               </div>
               {materials.length === 0 ? (
-                <p className="text-muted text-sm">No materials available.</p>
+                <p className="text-muted text-sm">No materials available for this course yet.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {materials.map((mat) => (
                     <div key={mat.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'var(--surface-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                      <span>{mat.filePath?.endsWith('.pdf') || mat.type === 'DOCUMENT' ? '📄' : '🎬'}</span>
+                      <span>{mat.filePath?.endsWith('.pdf') ? '📄' : '🎬'}</span>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{mat.title}</div>
-                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>{mat.type}</div>
+                        {mat.contentDescription && (
+                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>{mat.contentDescription}</div>
+                        )}
                       </div>
                       {mat.filePath && (
-                        <a href={`http://localhost:8080/${mat.filePath}`} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
-                          Open
-                        </a>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={() => downloadAuthenticatedFile(`/materials/${mat.id}/download`, mat.title)}
+                        >
+                          Download
+                        </button>
                       )}
                     </div>
                   ))}

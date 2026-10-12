@@ -96,6 +96,9 @@ const StudentDashboardPage = () => {
                       <p>{course.description || 'No description provided.'}</p>
                       <div className="course-meta">
                         {course.schedule && <span>🗓 {course.schedule}</span>}
+                        {course.instructors && course.instructors.length > 0 && (
+                          <span>👨‍🏫 {course.instructors.map(i => i.username || i.email).join(', ')}</span>
+                        )}
                         {enrolled && <span className="badge badge-success">Enrolled</span>}
                       </div>
                     </div>

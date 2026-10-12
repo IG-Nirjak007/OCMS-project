@@ -4,6 +4,7 @@ import Navbar from '../../components/layout/Navbar';
 import Sidebar from '../../components/layout/Sidebar';
 import Footer from '../../components/layout/Footer';
 import client from '../../api/client';
+import { downloadAuthenticatedFile } from '../../utils/fileDownloader';
 
 const GradeSubmissionsPage = () => {
   const { assignmentId } = useParams();
@@ -98,10 +99,23 @@ const GradeSubmissionsPage = () => {
                       <td>{new Date(sub.submittedAt).toLocaleString()}</td>
                       <td style={{ maxWidth: '200px' }}>
                         <div className="truncate" title={sub.description}>{sub.description || '-'}</div>
-                        {sub.fileUrl && (
-                          <a href={sub.fileUrl} target="_blank" rel="noreferrer" style={{ fontSize: 'var(--font-size-xs)' }}>
-                            View Link
-                          </a>
+                        {(sub.filePath || sub.fileUrl) && (
+                          <div style={{ marginTop: '0.25rem' }}>
+                            {((sub.filePath || sub.fileUrl).startsWith('http://') || (sub.filePath || sub.fileUrl).startsWith('https://')) ? (
+                              <a href={sub.filePath || sub.fileUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm" style={{ padding: '0.1rem 0.4rem', fontSize: 'var(--font-size-xs)' }}>
+                                🔗 Open Link
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '0.1rem 0.4rem', fontSize: 'var(--font-size-xs)' }}
+                                onClick={() => downloadAuthenticatedFile(`/submissions/${sub.id}/download`, `submission_${sub.student?.username || sub.id}`)}
+                              >
+                                📥 Download File
+                              </button>
+                            )}
+                          </div>
                         )}
                       </td>
                       <td>

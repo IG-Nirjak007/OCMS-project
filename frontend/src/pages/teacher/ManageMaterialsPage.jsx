@@ -4,6 +4,7 @@ import Navbar from '../../components/layout/Navbar';
 import Sidebar from '../../components/layout/Sidebar';
 import Footer from '../../components/layout/Footer';
 import client from '../../api/client';
+import { downloadAuthenticatedFile } from '../../utils/fileDownloader';
 
 const ManageMaterialsPage = () => {
   const { courseId } = useParams();
@@ -25,6 +26,11 @@ const ManageMaterialsPage = () => {
   const [asgDesc, setAsgDesc] = useState('');
   const [asgDueDate, setAsgDueDate] = useState('');
   const [asgLoading, setAsgLoading] = useState(false);
+
+  // Co-Instructor Form State
+  const [coInstructorEmail, setCoInstructorEmail] = useState('');
+  const [coInstructorLoading, setCoInstructorLoading] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
 
   useEffect(() => {
     fetchCourseData();
@@ -51,9 +57,11 @@ const ManageMaterialsPage = () => {
     e.preventDefault();
     if (!matFile) return alert('Please select a file');
     setMatLoading(true);
+    setActionMessage('');
     try {
       const formData = new FormData();
       formData.append('title', matTitle);
+      if (matDesc) formData.append('description', matDesc);
       formData.append('file', matFile);
       const res = await client.post(`/courses/${courseId}/materials`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -63,6 +71,7 @@ const ManageMaterialsPage = () => {
       setMatDesc('');
       setMatFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
+      setActionMessage('Material uploaded successfully.');
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to upload material.');
     } finally {
@@ -83,6 +92,7 @@ const ManageMaterialsPage = () => {
   const handleAssignmentSubmit = async (e) => {
     e.preventDefault();
     setAsgLoading(true);
+    setActionMessage('');
     try {
       const payload = {
         title: asgTitle,
@@ -95,6 +105,7 @@ const ManageMaterialsPage = () => {
       setAsgTitle('');
       setAsgDesc('');
       setAsgDueDate('');
+      setActionMessage('Assignment created successfully.');
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to create assignment.');
     } finally {
@@ -103,12 +114,40 @@ const ManageMaterialsPage = () => {
   };
 
   const handleDeleteAssignment = async (id) => {
-    if (!window.confirm('Delete this assignment?')) return;
+    if (!window.confirm('Delete this assignment? Submissions will also be removed.')) return;
     try {
       await client.delete(`/assignments/${id}`);
       setAssignments(assignments.filter((a) => a.id !== id));
     } catch (err) {
       alert('Failed to delete.');
+    }
+  };
+
+  const handleAddCoInstructor = async (e) => {
+    e.preventDefault();
+    if (!coInstructorEmail.trim()) return;
+    setCoInstructorLoading(true);
+    setActionMessage('');
+    try {
+      const res = await client.post(`/courses/${courseId}/instructors`, { email: coInstructorEmail.trim() });
+      setCourse(res.data);
+      setCoInstructorEmail('');
+      setActionMessage('Co-instructor added successfully!');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to add co-instructor. Make sure the email belongs to an existing instructor.');
+    } finally {
+      setCoInstructorLoading(false);
+    }
+  };
+
+  const handleRemoveCoInstructor = async (instructorId) => {
+    if (!window.confirm('Remove this co-instructor from the course?')) return;
+    try {
+      const res = await client.delete(`/courses/${courseId}/instructors/${instructorId}`);
+      setCourse(res.data);
+      setActionMessage('Co-instructor removed.');
+    } catch (err) {
+      alert('Failed to remove co-instructor.');
     }
   };
 
@@ -139,8 +178,71 @@ const ManageMaterialsPage = () => {
           <div className="page-header">
             <div>
               <h1 className="page-title">{course?.title} - Management</h1>
-              <p className="page-subtitle">Manage materials and assignments for this course</p>
+              <p className="page-subtitle">Manage curriculum materials, assignments, and teaching staff</p>
             </div>
+          </div>
+
+          {actionMessage && <div className="alert alert-success mb-4">✓ {actionMessage}</div>}
+
+          {/* Co-Instructors Section */}
+          <div className="card mb-6">
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h2 className="card-title">👨‍🏫 Course Teaching Staff & Co-Instructors</h2>
+                <p className="text-muted text-sm">Collaborative teaching team for this course</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              {course?.instructors && course.instructors.length > 0 ? (
+                course.instructors.map((inst) => (
+                  <div
+                    key={inst.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.5rem 0.75rem',
+                      background: 'var(--surface-2)',
+                      borderRadius: 'var(--radius)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <span>👤</span>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{inst.username}</div>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>{inst.email}</div>
+                    </div>
+                    {course.instructors.length > 1 && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: 'var(--danger)', padding: '0.2rem 0.4rem', marginLeft: '0.5rem' }}
+                        title="Remove co-instructor"
+                        onClick={() => handleRemoveCoInstructor(inst.id)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted text-sm">No instructors listed.</p>
+              )}
+            </div>
+
+            <form onSubmit={handleAddCoInstructor} style={{ display: 'flex', gap: '0.75rem', maxWidth: '480px' }}>
+              <input
+                type="email"
+                className="form-input"
+                placeholder="Enter co-instructor email..."
+                value={coInstructorEmail}
+                onChange={(e) => setCoInstructorEmail(e.target.value)}
+                required
+              />
+              <button type="submit" className="btn btn-secondary" disabled={coInstructorLoading}>
+                {coInstructorLoading ? 'Adding...' : '+ Add Co-Instructor'}
+              </button>
+            </form>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: '2rem', alignItems: 'start' }}>
@@ -148,7 +250,7 @@ const ManageMaterialsPage = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div className="card">
                 <div className="card-header">
-                  <h2 className="card-title">Materials ({materials.length})</h2>
+                  <h2 className="card-title">📁 Materials ({materials.length})</h2>
                 </div>
                 {materials.length === 0 ? (
                   <p className="text-muted text-sm text-center py-4">No materials uploaded yet.</p>
@@ -156,16 +258,22 @@ const ManageMaterialsPage = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {materials.map((mat) => (
                       <div key={mat.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'var(--surface-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: '1.5rem' }}>{mat.filePath?.endsWith('.pdf') || mat.type === 'DOCUMENT' ? '📄' : '🎬'}</div>
+                        <div style={{ fontSize: '1.5rem' }}>{mat.filePath?.endsWith('.pdf') ? '📄' : '🎬'}</div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 600 }}>{mat.title}</div>
-                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>{mat.type}</div>
+                          {mat.contentDescription && (
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>{mat.contentDescription}</div>
+                          )}
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                           {mat.filePath && (
-                            <a href={`http://localhost:8080/${mat.filePath}`} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">
-                              View
-                            </a>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => downloadAuthenticatedFile(`/materials/${mat.id}/download`, mat.title)}
+                            >
+                              Download
+                            </button>
                           )}
                           <button className="btn btn-danger btn-sm" onClick={() => handleDeleteMaterial(mat.id)}>Delete</button>
                         </div>
@@ -188,7 +296,7 @@ const ManageMaterialsPage = () => {
                   />
                   <textarea
                     className="form-textarea"
-                    placeholder="Description (Optional)"
+                    placeholder="Content description or notes (Optional)"
                     value={matDesc}
                     onChange={(e) => setMatDesc(e.target.value)}
                     rows={2}
@@ -211,7 +319,7 @@ const ManageMaterialsPage = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div className="card">
                 <div className="card-header">
-                  <h2 className="card-title">Assignments ({assignments.length})</h2>
+                  <h2 className="card-title">📝 Assignments ({assignments.length})</h2>
                 </div>
                 {assignments.length === 0 ? (
                   <p className="text-muted text-sm text-center py-4">No assignments created yet.</p>

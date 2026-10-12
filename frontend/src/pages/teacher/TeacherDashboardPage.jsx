@@ -133,9 +133,12 @@ const TeacherDashboardPage = () => {
                       <div className="course-card-body">
                         <h3>{course.title}</h3>
                         <p>{course.description || 'No description.'}</p>
-                        {course.schedule && (
-                          <div className="course-meta"><span>🗓 {course.schedule}</span></div>
-                        )}
+                        <div className="course-meta">
+                          {course.schedule && <span>🗓 {course.schedule}</span>}
+                          {course.instructors && course.instructors.length > 0 && (
+                            <span>👨‍🏫 {course.instructors.map(i => i.username || i.email).join(', ')}</span>
+                          )}
+                        </div>
                       </div>
                       <div className="course-card-footer" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <button
