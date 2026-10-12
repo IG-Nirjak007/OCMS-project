@@ -5,4 +5,8 @@ export const uploadMaterial = (courseId, formData) =>
     client.post(`/courses/${courseId}/materials`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
     });
-export const deleteMaterial = (materialId) => client.delete(`/materials/${materialId}`);// materialApi - GET/POST /api/courses/materials stub
+export const deleteMaterial = (materialId) => client.delete(`/materials/${materialId}`);
+export const getMaterialDownloadUrl = (materialId) => {
+    const baseURL = client.defaults.baseURL || 'http://localhost:8080/api';
+    return `${baseURL}/materials/${materialId}/download`;
+};
