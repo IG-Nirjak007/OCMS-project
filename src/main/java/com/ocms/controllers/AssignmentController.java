@@ -39,6 +39,12 @@ public class AssignmentController {
         return ResponseEntity.ok(assignmentService.getSubmissionsForAssignment(id));
     }
 
+    // CRUD: Get assignment by ID
+    @GetMapping("/assignments/{id}")
+    public ResponseEntity<Assignment> getAssignmentById(@PathVariable Long id) {
+        return ResponseEntity.ok(assignmentService.getById(id));
+    }
+
     // CRUD: Create Assignment
     @PostMapping("/assignments")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
@@ -47,9 +53,52 @@ public class AssignmentController {
         String title = (String) payload.get("title");
         String description = (String) payload.get("description");
         String dueDateStr = (String) payload.get("dueDate");
-        java.time.LocalDateTime dueDate = java.time.LocalDateTime.parse(dueDateStr);
+        java.time.LocalDateTime dueDate = null;
+        if (dueDateStr != null && !dueDateStr.isBlank()) {
+            try {
+                if (dueDateStr.endsWith("Z")) {
+                    dueDate = java.time.Instant.parse(dueDateStr).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+                } else {
+                    dueDate = java.time.LocalDateTime.parse(dueDateStr);
+                }
+            } catch (Exception e) {
+                try {
+                    dueDate = java.time.OffsetDateTime.parse(dueDateStr).toLocalDateTime();
+                } catch (Exception ignored) {
+                }
+            }
+        }
         
         return ResponseEntity.ok(assignmentService.create(courseId, title, description, dueDate));
+    }
+
+    // CRUD: Update Assignment
+    @PutMapping("/assignments/{id}")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<Assignment> updateAssignment(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        String title = (String) payload.get("title");
+        String description = (String) payload.get("description");
+        String dueDateStr = (String) payload.get("dueDate");
+        java.time.LocalDateTime dueDate = null;
+        if (dueDateStr != null && !dueDateStr.isBlank()) {
+            try {
+                if (dueDateStr.endsWith("Z")) {
+                    dueDate = java.time.Instant.parse(dueDateStr).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+                } else {
+                    dueDate = java.time.LocalDateTime.parse(dueDateStr);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return ResponseEntity.ok(assignmentService.update(id, title, description, dueDate));
+    }
+
+    // CRUD: Delete Assignment
+    @DeleteMapping("/assignments/{id}")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteAssignment(@PathVariable Long id) {
+        assignmentService.delete(id);
+        return ResponseEntity.noContent().build();
     }
     
     // CRUD: Get all assignments for a course

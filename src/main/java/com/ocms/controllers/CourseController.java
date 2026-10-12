@@ -35,6 +35,12 @@ public class CourseController {
         this.userRepository = userRepository;
     }
 
+    // Get all courses (Catalog)
+    @GetMapping
+    public ResponseEntity<List<Course>> getAllCourses() {
+        return ResponseEntity.ok(courseService.getAllCourses());
+    }
+
     // Create course
     @PostMapping
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
@@ -50,7 +56,6 @@ public class CourseController {
         return ResponseEntity.ok(courseService.getCourseById(id));
     }
 
-
     // Update course
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
@@ -58,9 +63,29 @@ public class CourseController {
         return ResponseEntity.ok(courseService.updateCourse(id, courseDetails));
     }
 
+    // Add co-instructor to course
+    @PostMapping("/{courseId}/instructors")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<Course> addInstructor(@PathVariable Long courseId, @RequestBody Map<String, Object> payload) {
+        if (payload.containsKey("email")) {
+            return ResponseEntity.ok(courseService.addInstructorByEmail(courseId, payload.get("email").toString()));
+        } else if (payload.containsKey("instructorId")) {
+            Long instructorId = Long.valueOf(payload.get("instructorId").toString());
+            return ResponseEntity.ok(courseService.addInstructor(courseId, instructorId));
+        }
+        return ResponseEntity.badRequest().build();
+    }
+
+    // Remove co-instructor from course
+    @DeleteMapping("/{courseId}/instructors/{instructorId}")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<Course> removeInstructor(@PathVariable Long courseId, @PathVariable Long instructorId) {
+        return ResponseEntity.ok(courseService.removeInstructor(courseId, instructorId));
+    }
+
     // Delete course
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<Void> deleteCourse(@PathVariable Long id) {
         courseService.deleteCourse(id);
         return ResponseEntity.noContent().build();

@@ -30,10 +30,12 @@ public class MaterialController {
 
     private final MaterialService materialService;
     private final EmailService emailService;
+    private final FileStorageService fileStorageService;
 
-    public MaterialController(MaterialService materialService, EmailService emailService) {
+    public MaterialController(MaterialService materialService, EmailService emailService, FileStorageService fileStorageService) {
         this.materialService = materialService;
         this.emailService = emailService;
+        this.fileStorageService = fileStorageService;
     }
 
     // Get all materials for a specific course
@@ -47,19 +49,58 @@ public class MaterialController {
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<Material> uploadMaterial(@PathVariable Long courseId,
                                                    @RequestParam("title") String title,
+                                                   @RequestParam(value = "description", required = false) String description,
                                                    @RequestParam("file") MultipartFile file) {
-        Material savedMaterial = materialService.saveMaterial(courseId, title, file);
+        Material savedMaterial = materialService.saveMaterial(courseId, title, description, file);
 
         // Fetch enrolled student email addresses and trigger async email notifications
-        List<String> studentEmails = materialService.getEnrolledStudentEmails(courseId);
-        for (String email : studentEmails) {
-            emailService.sendMaterialUploadAlert(email, savedMaterial.getCourse().getTitle(), savedMaterial.getTitle());
+        try {
+            List<String> studentEmails = materialService.getEnrolledStudentEmails(courseId);
+            for (String email : studentEmails) {
+                emailService.sendMaterialUploadAlert(email, savedMaterial.getCourse().getTitle(), savedMaterial.getTitle());
+            }
+        } catch (Exception ignored) {
         }
 
         return ResponseEntity.ok(savedMaterial);
     }
 
-    // Delete material endpoint (Required by frontend materialApi.js)
+    // Download/Access material file
+    @GetMapping("/materials/{id}/download")
+    public ResponseEntity<Resource> downloadMaterial(@PathVariable Long id) {
+        Material material = materialService.getMaterialById(id);
+        if (material.getFilePath() == null || material.getFilePath().isBlank()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        try {
+            Path filePath = fileStorageService.loadFile(material.getFilePath());
+            if (filePath == null || !java.nio.file.Files.exists(filePath) || !java.nio.file.Files.isReadable(filePath)) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Resource resource = new UrlResource(filePath.toUri());
+            String contentType = java.nio.file.Files.probeContentType(filePath);
+            if (contentType == null) {
+                contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+            }
+
+            // Extract a display filename from stored name (strip prefix timestamp)
+            String filename = filePath.getFileName().toString();
+            if (filename.contains("_")) {
+                filename = filename.substring(filename.indexOf('_') + 1);
+            }
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    // Delete material endpoint
     @DeleteMapping("/materials/{id}")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<Void> deleteMaterial(@PathVariable Long id) {

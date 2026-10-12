@@ -19,6 +19,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -39,12 +40,18 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable())
+        http.cors(Customizer.withDefaults())
+                .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/courses/**").authenticated()
+                        .requestMatchers("/api/materials/**").authenticated()
+                        .requestMatchers("/api/assignments/**").authenticated()
+                        .requestMatchers("/api/submissions/**").authenticated()
+                        .requestMatchers("/api/enrollments/**").authenticated()
+                        .requestMatchers("/api/users/**").authenticated()
                         .anyRequest().authenticated()
                 );
 
