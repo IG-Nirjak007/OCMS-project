@@ -13,6 +13,7 @@ import com.ocms.repositories.CourseRepository;
 import com.ocms.repositories.EnrollmentRepository;
 import com.ocms.repositories.UserRepository;
 import com.ocms.services.CourseService;
+import com.ocms.services.EnrollmentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,10 +30,12 @@ public class CourseController {
 
     private final CourseService courseService;
     private final UserRepository userRepository;
+    private final EnrollmentService enrollmentService;
 
-    public CourseController(CourseService courseService, UserRepository userRepository) {
+    public CourseController(CourseService courseService, UserRepository userRepository, EnrollmentService enrollmentService) {
         this.courseService = courseService;
         this.userRepository = userRepository;
+        this.enrollmentService = enrollmentService;
     }
 
     // Get all courses (Catalog)
@@ -41,12 +44,41 @@ public class CourseController {
         return ResponseEntity.ok(courseService.getAllCourses());
     }
 
-    // Create course
+    // Create course (supports assigning teacher and admitting students)
     @PostMapping
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<Course> createCourse(@RequestBody Course course, @AuthenticationPrincipal UserDetails userDetails) {
-        User instructor = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
-        Course createdCourse = courseService.createCourse(course, instructor.getId());
+    public ResponseEntity<Course> createCourse(@RequestBody CourseCreateDTO dto, @AuthenticationPrincipal UserDetails userDetails) {
+        User currentUser = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        
+        Long targetInstructorId;
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().contains("ADMIN"));
+
+        if (isAdmin && dto.getInstructorId() != null) {
+            targetInstructorId = dto.getInstructorId();
+        } else if (dto.getInstructorId() != null) {
+            targetInstructorId = dto.getInstructorId();
+        } else {
+            targetInstructorId = currentUser.getId();
+        }
+
+        Course course = new Course();
+        course.setTitle(dto.getTitle());
+        course.setDescription(dto.getDescription());
+        course.setSchedule(dto.getSchedule());
+
+        Course createdCourse = courseService.createCourse(course, targetInstructorId);
+
+        // Admit/enroll initial students if specified
+        if (dto.getStudentIds() != null && !dto.getStudentIds().isEmpty()) {
+            for (Long sId : dto.getStudentIds()) {
+                try {
+                    enrollmentService.enrollStudent(createdCourse.getId(), sId);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
         return ResponseEntity.ok(createdCourse);
     }
 

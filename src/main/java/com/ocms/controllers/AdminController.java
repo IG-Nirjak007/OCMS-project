@@ -59,6 +59,22 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("report", report));
     }
 
+    /** Create a user account directly by Admin (STUDENT, TEACHER, or ADMIN). */
+    @PostMapping("/users")
+    public ResponseEntity<?> createUser(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String email = request.get("email");
+        String password = request.get("password");
+        String role = request.get("role") != null ? request.get("role") : "STUDENT";
+
+        if (username == null || username.isBlank() || email == null || email.isBlank() || password == null || password.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Username, email, and password are required."));
+        }
+
+        User user = userService.register(username, email, password, role);
+        return ResponseEntity.ok(DTOMapper.toUserDTO(user));
+    }
+
     /** Remove a user account by ID. */
     @DeleteMapping("/users/{id}")
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
