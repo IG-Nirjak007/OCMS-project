@@ -4,6 +4,7 @@ import Navbar from '../../components/layout/Navbar';
 import Sidebar from '../../components/layout/Sidebar';
 import Footer from '../../components/layout/Footer';
 import client from '../../api/client';
+import { downloadAuthenticatedFile } from '../../utils/fileDownloader';
 
 const SubmitAssignmentPage = () => {
   const { assignmentId } = useParams();
@@ -15,6 +16,7 @@ const SubmitAssignmentPage = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
   const [fileToUpload, setFileToUpload] = useState(null);
 
   useEffect(() => {
@@ -79,6 +81,8 @@ const SubmitAssignmentPage = () => {
     }
   };
 
+  const isDeadlinePassed = assignment?.dueDate ? new Date(assignment.dueDate) < new Date() : false;
+
   return (
     <div className="app-shell">
       <Navbar />
@@ -99,16 +103,35 @@ const SubmitAssignmentPage = () => {
                   </p>
                 )}
                 {assignment?.dueDate && (
-                  <div style={{ marginTop: '0.5rem' }}>
-                    <span className="badge badge-warning">
+                  <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <span className={`badge ${isDeadlinePassed ? 'badge-danger' : 'badge-warning'}`}>
                       📅 Due: {new Date(assignment.dueDate).toLocaleString()}
                     </span>
+                    {isDeadlinePassed ? (
+                      <span className="badge badge-danger">🔒 Deadline Passed (Closed)</span>
+                    ) : (
+                      <span className="badge badge-success">🟢 Active - Editable until deadline</span>
+                    )}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Already graded */}
+            {/* Deadline Passed Alert */}
+            {isDeadlinePassed && (
+              <div className="alert alert-error mb-4">
+                🔒 <strong>Deadline has passed.</strong> The deadline was {new Date(assignment.dueDate).toLocaleString()}. Submissions and edits are closed.
+              </div>
+            )}
+
+            {/* Editable before deadline Notice */}
+            {!isDeadlinePassed && mySubmission && (
+              <div className="alert alert-info mb-4">
+                ✏️ <strong>You have already submitted this assignment.</strong> You can edit your answers and re-upload files as many times as you like until the deadline.
+              </div>
+            )}
+
+            {/* Graded Alert */}
             {mySubmission?.grade != null && (
               <div className="alert alert-success mb-4">
                 ✅ Graded: <strong>{mySubmission.grade}</strong>/100
@@ -127,51 +150,88 @@ const SubmitAssignmentPage = () => {
               <div className="card">
                 <form onSubmit={handleSubmit} className="modal-form">
                   <div className="form-group">
-                    <label className="form-label">Submission Description / Written Answer *</label>
+                    <label className="form-label">
+                      Submission Description / Written Answer * {isDeadlinePassed && '(Read-Only)'}
+                    </label>
                     <textarea
                       className="form-textarea"
-                      placeholder="Explain your approach, answer questions, or summarize work done..."
+                      placeholder={isDeadlinePassed ? 'No submission answer.' : 'Explain your approach, answer questions, or summarize work done...'}
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       rows={5}
                       required
+                      disabled={isDeadlinePassed}
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Upload Submission File (Optional)</label>
-                    <input
-                      type="file"
-                      className="form-input"
-                      onChange={(e) => setFileToUpload(e.target.files[0])}
-                    />
-                    <span className="form-hint">Upload a PDF, document, ZIP, or code file</span>
-                  </div>
+                  {!isDeadlinePassed && (
+                    <div className="form-group">
+                      <label className="form-label">
+                        {mySubmission?.filePath ? 'Re-upload / Replace Submission File' : 'Upload Submission File (Optional)'}
+                      </label>
+                      <input
+                        type="file"
+                        className="form-input"
+                        onChange={(e) => setFileToUpload(e.target.files[0])}
+                        disabled={isDeadlinePassed}
+                      />
+                      <span className="form-hint">Upload a PDF, document, ZIP, or code file</span>
+                    </div>
+                  )}
 
-                  <div className="form-group">
-                    <label className="form-label">External Resource URL (Optional)</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="https://github.com/... or https://drive.google.com/..."
-                      value={fileUrl}
-                      onChange={(e) => setFileUrl(e.target.value)}
-                    />
-                    <span className="form-hint">Paste a link to your repository or cloud drive</span>
-                  </div>
+                  {!isDeadlinePassed && (
+                    <div className="form-group">
+                      <label className="form-label">External Resource URL (Optional)</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="https://github.com/... or https://drive.google.com/..."
+                        value={fileUrl}
+                        onChange={(e) => setFileUrl(e.target.value)}
+                        disabled={isDeadlinePassed}
+                      />
+                      <span className="form-hint">Paste a link to your repository or cloud drive</span>
+                    </div>
+                  )}
 
                   {mySubmission?.filePath && (
-                    <div className="mb-4" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted)' }}>
-                      Current file/link on record: <strong>{mySubmission.filePath}</strong>
+                    <div className="mb-4" style={{ padding: '0.75rem', background: 'var(--surface-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 'var(--font-size-sm)', marginBottom: '0.25rem' }}>
+                        📁 <strong>Current file on record:</strong>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        {((mySubmission.filePath).startsWith('http://') || (mySubmission.filePath).startsWith('https://')) ? (
+                          <a href={mySubmission.filePath} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
+                            🔗 Open External Link
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => downloadAuthenticatedFile(`/submissions/${mySubmission.id}/download`, `my_submission_${assignmentId}`)}
+                          >
+                            📥 Download Submitted File
+                          </button>
+                        )}
+                        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+                          Submitted: {new Date(mySubmission.submittedAt).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   )}
 
                   <button
                     type="submit"
                     className="btn btn-primary"
-                    disabled={submitting || !description.trim()}
+                    disabled={submitting || isDeadlinePassed || !description.trim()}
                   >
-                    {submitting ? 'Submitting...' : mySubmission ? 'Update / Resubmit' : 'Submit Assignment'}
+                    {submitting
+                      ? 'Submitting...'
+                      : isDeadlinePassed
+                      ? '🔒 Deadline Passed (Submissions Closed)'
+                      : mySubmission
+                      ? '✏️ Update / Resubmit Assignment'
+                      : 'Submit Assignment'}
                   </button>
                 </form>
               </div>

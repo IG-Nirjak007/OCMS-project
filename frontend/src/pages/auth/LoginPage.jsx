@@ -4,11 +4,22 @@ import { useAuth } from '../../context/AuthContext';
 import Footer from '../../components/layout/Footer';
 
 const LoginPage = () => {
-  const { login } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (user) {
+      const roles = (user.roles || []).map((r) =>
+        typeof r === 'string' ? r : r.name
+      );
+      if (roles.some((r) => r.includes('ADMIN'))) navigate('/admin', { replace: true });
+      else if (roles.some((r) => r.includes('TEACHER'))) navigate('/teacher/dashboard', { replace: true });
+      else navigate('/student/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 

@@ -12,19 +12,22 @@ const CourseDetailPage = () => {
   const [course, setCourse] = useState(null);
   const [materials, setMaterials] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [mySubmissions, setMySubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const [courseRes, matRes, assignRes] = await Promise.all([
+        const [courseRes, matRes, assignRes, subRes] = await Promise.allSettled([
           client.get(`/courses/${courseId}`),
           client.get(`/courses/${courseId}/materials`),
           client.get(`/courses/${courseId}/assignments`),
+          client.get('/submissions/me'),
         ]);
-        setCourse(courseRes.data);
-        setMaterials(matRes.data || []);
-        setAssignments(assignRes.data || []);
+        if (courseRes.status === 'fulfilled') setCourse(courseRes.value.data);
+        if (matRes.status === 'fulfilled') setMaterials(matRes.value.data || []);
+        if (assignRes.status === 'fulfilled') setAssignments(assignRes.value.data || []);
+        if (subRes.status === 'fulfilled') setMySubmissions(subRes.value.data || []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -122,26 +125,41 @@ const CourseDetailPage = () => {
                 <p className="text-muted text-sm">No assignments posted yet.</p>
               ) : (
                 <div className="assignment-list">
-                  {assignments.map((a) => (
-                    <div className="assignment-item" key={a.id}>
-                      <div className="assignment-info">
-                        <h4>{a.title}</h4>
-                        <p>{a.description}</p>
-                        {a.dueDate && (
-                          <div className={`due-date ${isOverdue(a.dueDate) ? 'overdue' : 'upcoming'}`}>
-                            {isOverdue(a.dueDate) ? '⚠ Overdue: ' : '📅 Due: '}
-                            {new Date(a.dueDate).toLocaleString()}
+                  {assignments.map((a) => {
+                    const overdue = isOverdue(a.dueDate);
+                    const sub = mySubmissions.find((s) => s.assignment?.id === a.id);
+                    return (
+                      <div className="assignment-item" key={a.id}>
+                        <div className="assignment-info">
+                          <h4>{a.title}</h4>
+                          <p>{a.description}</p>
+                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.35rem' }}>
+                            {a.dueDate && (
+                              <div className={`due-date ${overdue ? 'overdue' : 'upcoming'}`}>
+                                {overdue ? '⚠ Overdue: ' : '📅 Due: '}
+                                {new Date(a.dueDate).toLocaleString()}
+                              </div>
+                            )}
+                            {sub?.grade != null ? (
+                              <span className="badge badge-success">Graded: {sub.grade}/100</span>
+                            ) : sub ? (
+                              <span className="badge badge-primary">Submitted {!overdue && '(Editable)'}</span>
+                            ) : overdue ? (
+                              <span className="badge badge-danger">Closed</span>
+                            ) : (
+                              <span className="badge badge-warning">Not Submitted</span>
+                            )}
                           </div>
-                        )}
+                        </div>
+                        <button
+                          className={`btn ${sub ? 'btn-secondary' : 'btn-primary'} btn-sm`}
+                          onClick={() => navigate(`/assignments/${a.id}/submit`)}
+                        >
+                          {overdue ? 'View Submission' : sub ? 'Edit Submission' : 'Submit'}
+                        </button>
                       </div>
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => navigate(`/assignments/${a.id}/submit`)}
-                      >
-                        Submit
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

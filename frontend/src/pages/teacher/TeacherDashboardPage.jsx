@@ -98,67 +98,124 @@ const TeacherDashboardPage = () => {
     }
   };
 
+  const [filterMode, setFilterMode] = useState('mine');
+  const [search, setSearch] = useState('');
+
+  const isTaughtByMe = (course) => {
+    return course.instructors?.some((i) => i.id === user?.id || i.email === user?.email);
+  };
+
+  const displayedCourses = myCourses.filter((c) => {
+    const matchesFilter = filterMode === 'all' || isTaughtByMe(c);
+    const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase()) ||
+      (c.description && c.description.toLowerCase().includes(search.toLowerCase()));
+    return matchesFilter && matchesSearch;
+  });
+
   return (
     <div className="app-shell">
       <Navbar />
       <div className="page-layout">
         <Sidebar />
         <main className="main-content">
-          <div className="page-header">
+          <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <h1 className="page-title">My Classrooms</h1>
-              <p className="page-subtitle">Manage your courses, materials and assignments</p>
+              <h1 className="page-title">Teacher Dashboard 👨‍🏫</h1>
+              <p className="page-subtitle">Manage curriculum, upload materials, create assignments, and grade submissions</p>
             </div>
             <button className="btn btn-primary" onClick={() => setShowModal(true)}>
               + Create New Classroom
             </button>
           </div>
 
+          {/* Teacher Stats */}
+          <div className="stats-grid mb-6">
+            <div className="stat-card">
+              <div className="stat-icon orange">🏫</div>
+              <div>
+                <div className="stat-value">{myCourses.filter(isTaughtByMe).length}</div>
+                <div className="stat-label">My Taught Classrooms</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon indigo">📚</div>
+              <div>
+                <div className="stat-value">{myCourses.length}</div>
+                <div className="stat-label">Total Platform Classrooms</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                className={`btn btn-sm ${filterMode === 'mine' ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setFilterMode('mine')}
+              >
+                My Classrooms ({myCourses.filter(isTaughtByMe).length})
+              </button>
+              <button
+                className={`btn btn-sm ${filterMode === 'all' ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setFilterMode('all')}
+              >
+                All Classrooms ({myCourses.length})
+              </button>
+            </div>
+
+            <input
+              type="text"
+              className="form-input"
+              placeholder="🔍 Search classrooms..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ maxWidth: '280px' }}
+            />
+          </div>
+
           {loading ? (
             <div className="loading-spinner"><div className="spinner" /></div>
+          ) : displayedCourses.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">🏫</div>
+              <div className="empty-title">No classrooms found</div>
+              <div className="empty-desc">Click "+ Create New Classroom" to launch a new course.</div>
+            </div>
           ) : (
-            <>
-              <h2 className="section-title" style={{ marginBottom: '1rem' }}>My Created Classrooms</h2>
-              {myCourses.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">🏫</div>
-                  <div className="empty-title">No classrooms yet</div>
-                  <div className="empty-desc">Click "Create New Classroom" to get started.</div>
-                </div>
-              ) : (
-                <div className="course-grid">
-                  {myCourses.map((course) => (
-                    <div className="course-card" key={course.id}>
-                      <div className="course-card-banner">🏫</div>
-                      <div className="course-card-body">
-                        <h3>{course.title}</h3>
-                        <p>{course.description || 'No description.'}</p>
-                        <div className="course-meta">
-                          {course.schedule && <span>🗓 {course.schedule}</span>}
-                          {course.instructors && course.instructors.length > 0 && (
-                            <span>👨‍🏫 {course.instructors.map(i => i.username || i.email).join(', ')}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="course-card-footer" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <button
-                          className="btn btn-primary btn-sm"
-                          onClick={() => navigate(`/courses/${course.id}/materials`)}
-                        >
-                          View Classroom
-                        </button>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete(course.id)}
-                        >
-                          Delete
-                        </button>
+            <div className="course-grid">
+              {displayedCourses.map((course) => {
+                const taught = isTaughtByMe(course);
+                return (
+                  <div className="course-card" key={course.id}>
+                    <div className="course-card-banner">🏫</div>
+                    <div className="course-card-body">
+                      <h3>{course.title}</h3>
+                      <p>{course.description || 'No description.'}</p>
+                      <div className="course-meta">
+                        {course.schedule && <span>🗓 {course.schedule}</span>}
+                        {course.instructors && course.instructors.length > 0 && (
+                          <span>👨‍🏫 {course.instructors.map((i) => i.username || i.email).join(', ')}</span>
+                        )}
+                        {taught && <span className="badge badge-success">Lead Instructor</span>}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </>
+                    <div className="course-card-footer" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <button
+                        className="btn btn-primary btn-sm flex-1"
+                        onClick={() => navigate(`/courses/${course.id}/materials`)}
+                      >
+                        Manage Classroom
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDelete(course.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </main>
       </div>

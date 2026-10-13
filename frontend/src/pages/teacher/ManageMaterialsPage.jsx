@@ -4,14 +4,20 @@ import Navbar from '../../components/layout/Navbar';
 import Sidebar from '../../components/layout/Sidebar';
 import Footer from '../../components/layout/Footer';
 import client from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import { downloadAuthenticatedFile } from '../../utils/fileDownloader';
 
 const ManageMaterialsPage = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [course, setCourse] = useState(null);
   const [materials, setMaterials] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [enrollments, setEnrollments] = useState([]);
+  const [allStudents, setAllStudents] = useState([]);
+  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [studentLoading, setStudentLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Material Form State
@@ -38,18 +44,58 @@ const ManageMaterialsPage = () => {
 
   const fetchCourseData = async () => {
     try {
-      const [cRes, mRes, aRes] = await Promise.all([
+      const [cRes, mRes, aRes, eRes, uRes] = await Promise.allSettled([
         client.get(`/courses/${courseId}`),
         client.get(`/courses/${courseId}/materials`),
         client.get(`/courses/${courseId}/assignments`),
+        client.get(`/enrollments/course/${courseId}`),
+        client.get('/admin/users'), // if admin or teacher
       ]);
-      setCourse(cRes.data);
-      setMaterials(mRes.data || []);
-      setAssignments(aRes.data || []);
+      if (cRes.status === 'fulfilled') setCourse(cRes.value.data);
+      if (mRes.status === 'fulfilled') setMaterials(mRes.value.data || []);
+      if (aRes.status === 'fulfilled') setAssignments(aRes.value.data || []);
+      if (eRes.status === 'fulfilled') setEnrollments(eRes.value.data || []);
+      if (uRes.status === 'fulfilled') {
+        const studentsList = (uRes.value.data || []).filter(u => {
+          const roles = u.roles || [];
+          const roleStr = roles.map(r => typeof r === 'string' ? r : r.name).join(' ');
+          return roleStr.includes('STUDENT');
+        });
+        setAllStudents(studentsList);
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAdmitStudent = async (e) => {
+    e.preventDefault();
+    if (!selectedStudentId) return;
+    setStudentLoading(true);
+    setActionMessage('');
+    try {
+      await client.post(`/enrollments/course/${courseId}/students/${selectedStudentId}`);
+      setActionMessage('Student admitted to classroom successfully.');
+      setSelectedStudentId('');
+      const eRes = await client.get(`/enrollments/course/${courseId}`);
+      setEnrollments(eRes.data || []);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to admit student.');
+    } finally {
+      setStudentLoading(false);
+    }
+  };
+
+  const handleRemoveStudent = async (studentId) => {
+    if (!window.confirm('Remove this student from the classroom?')) return;
+    try {
+      await client.delete(`/enrollments/course/${courseId}/students/${studentId}`);
+      setEnrollments(enrollments.filter(e => e.student?.id !== studentId));
+      setActionMessage('Student removed from classroom.');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to remove student.');
     }
   };
 
@@ -171,8 +217,8 @@ const ManageMaterialsPage = () => {
       <div className="page-layout">
         <Sidebar />
         <main className="main-content">
-          <button className="btn btn-ghost btn-sm mb-4" onClick={() => navigate('/teacher/dashboard')}>
-            ← Back to Dashboard
+          <button className="btn btn-ghost btn-sm mb-4" onClick={() => navigate(isAdmin?.() ? '/admin' : '/teacher/dashboard')}>
+            ← Back to {isAdmin?.() ? 'Admin Dashboard' : 'Teacher Dashboard'}
           </button>
 
           <div className="page-header">
@@ -243,6 +289,75 @@ const ManageMaterialsPage = () => {
                 {coInstructorLoading ? 'Adding...' : '+ Add Co-Instructor'}
               </button>
             </form>
+          </div>
+
+          {/* Admitted / Enrolled Students Section */}
+          <div className="card mb-6">
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h2 className="card-title">🎓 Admitted Students ({enrollments.length})</h2>
+                <p className="text-muted text-sm">Students enrolled and admitted to this classroom</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              {enrollments.length > 0 ? (
+                enrollments.map((enr) => (
+                  <div
+                    key={enr.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.5rem 0.75rem',
+                      background: 'var(--surface-2)',
+                      borderRadius: 'var(--radius)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <span>🎓</span>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{enr.student?.username || `Student #${enr.student?.id}`}</div>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>{enr.student?.email}</div>
+                    </div>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      style={{ color: 'var(--danger)', padding: '0.2rem 0.4rem', marginLeft: '0.5rem' }}
+                      title="Remove student from classroom"
+                      onClick={() => handleRemoveStudent(enr.student?.id)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted text-sm">No students currently enrolled.</p>
+              )}
+            </div>
+
+            {/* Admit Student Form */}
+            {allStudents.length > 0 ? (
+              <form onSubmit={handleAdmitStudent} style={{ display: 'flex', gap: '0.75rem', maxWidth: '480px' }}>
+                <select
+                  className="form-input"
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  required
+                >
+                  <option value="">-- Select Student to Admit --</option>
+                  {allStudents
+                    .filter((s) => !enrollments.some((e) => e.student?.id === s.id))
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.username} ({s.email})
+                      </option>
+                    ))}
+                </select>
+                <button type="submit" className="btn btn-secondary" disabled={studentLoading || !selectedStudentId}>
+                  {studentLoading ? 'Admitting...' : '+ Admit Student'}
+                </button>
+              </form>
+            ) : null}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: '2rem', alignItems: 'start' }}>
