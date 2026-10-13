@@ -29,6 +29,23 @@ import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import PrivateRoute from './components/layout/PrivateRoute';
 import NotFoundPage from './pages/shared/NotFoundPage';
 import UnauthorizedPage from './pages/shared/UnauthorizedPage';
+import { useAuth } from './context/AuthContext';
+
+function DashboardRedirect() {
+  const { user, loading, isAdmin, isTeacher } = useAuth();
+  if (loading) {
+    return (
+      <div className="loading-spinner">
+        <div className="spinner" />
+        <span className="loading-text">Loading dashboard...</span>
+      </div>
+    );
+  }
+  if (!user) return <Navigate to="/login" replace />;
+  if (isAdmin?.()) return <Navigate to="/admin" replace />;
+  if (isTeacher?.()) return <Navigate to="/teacher/dashboard" replace />;
+  return <Navigate to="/student/dashboard" replace />;
+}
 
 function App() {
   return (
@@ -40,6 +57,10 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+        {/* Dynamic Role Dashboard Route */}
+        <Route path="/dashboard" element={<DashboardRedirect />} />
+        <Route path="/admin/dashboard" element={<Navigate to="/admin" replace />} />
 
         {/* Student Routes */}
         <Route element={<PrivateRoute allowedRoles={['ROLE_STUDENT', 'STUDENT']} />}>
