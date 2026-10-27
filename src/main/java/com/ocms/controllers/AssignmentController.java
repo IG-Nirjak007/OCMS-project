@@ -32,10 +32,29 @@ public class AssignmentController {
         this.emailService = emailService;
     }
 
-    // Get all submissions for an assignment
+    private User getUserFromPrincipal(UserDetails userDetails) {
+        String p = userDetails.getUsername();
+        return userRepository.findByEmailIgnoreCase(p)
+                .or(() -> userRepository.findByUsernameIgnoreCase(p))
+                .or(() -> userRepository.findByEmail(p))
+                .or(() -> userRepository.findByUsername(p))
+                .orElseThrow(() -> new RuntimeException("User not found: " + p));
+    }
+
+    // Get all submissions for an assignment (only assigned instructor or admin)
     @GetMapping("/assignments/{id}/submissions")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<List<Submission>> getSubmissions(@PathVariable Long id) {
+    public ResponseEntity<?> getSubmissions(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
+        User caller = getUserFromPrincipal(userDetails);
+        boolean isAdmin = caller.getRoles().stream().anyMatch(r -> r.getName().contains("ADMIN"));
+        Assignment assignment = assignmentService.getById(id);
+        if (!isAdmin) {
+            boolean isInstructor = assignment.getCourse().getInstructors().stream()
+                    .anyMatch(inst -> inst.getId().equals(caller.getId()));
+            if (!isInstructor) {
+                return ResponseEntity.status(403).body(Map.of("message", "You can only view submissions for classrooms where you are assigned as an instructor."));
+            }
+        }
         return ResponseEntity.ok(assignmentService.getSubmissionsForAssignment(id));
     }
 

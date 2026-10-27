@@ -53,14 +53,20 @@ public class AuthController {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // POST /api/auth/register — open registration for STUDENT / TEACHER
+    // POST /api/auth/register — supports registering as STUDENT or TEACHER
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody RegisterRequest registerRequest) {
+        String requestedRole = registerRequest.getRole();
+        String roleToAssign = "STUDENT";
+        if (requestedRole != null && requestedRole.trim().toUpperCase().contains("TEACHER")) {
+            roleToAssign = "TEACHER";
+        }
+
         User user = userService.register(
                 registerRequest.getUsername(),
                 registerRequest.getEmail(),
                 registerRequest.getPassword(),
-                registerRequest.getRole() != null ? registerRequest.getRole() : "STUDENT"
+                roleToAssign
         );
         UserDTO userDTO = new UserDTO(user.getId(), user.getUsername(), user.getEmail(), user.getRoles());
         return ResponseEntity.ok(Map.of("message", "User registered successfully.", "user", userDTO));
@@ -69,14 +75,18 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> loginUser(@RequestBody LoginRequest loginRequest) {
         try {
+            String loginId = loginRequest.getEmail() != null ? loginRequest.getEmail().trim() : "";
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
+                    new UsernamePasswordAuthenticationToken(loginId, loginRequest.getPassword())
             );
 
             String jwt = jwtUtils.generateJwtToken(authentication);
 
-            User user = userRepository.findByEmail(loginRequest.getEmail())
-                    .orElseThrow(() -> new RuntimeException("User not found with email: " + loginRequest.getEmail()));
+            User user = userRepository.findByEmailIgnoreCase(loginId)
+                    .or(() -> userRepository.findByUsernameIgnoreCase(loginId))
+                    .or(() -> userRepository.findByEmail(loginId))
+                    .or(() -> userRepository.findByUsername(loginId))
+                    .orElseThrow(() -> new RuntimeException("User not found with identifier: " + loginId));
 
             UserDTO userDto = new UserDTO(user.getId(), user.getUsername(), user.getEmail(), user.getRoles());
 
@@ -99,8 +109,12 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
         }
 
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        String principal = userDetails.getUsername();
+        User user = userRepository.findByEmailIgnoreCase(principal)
+                .or(() -> userRepository.findByUsernameIgnoreCase(principal))
+                .or(() -> userRepository.findByEmail(principal))
+                .or(() -> userRepository.findByUsername(principal))
+                .orElseThrow(() -> new RuntimeException("User not found: " + principal));
 
         UserDTO userDto = new UserDTO(user.getId(), user.getUsername(), user.getEmail(), user.getRoles());
         return ResponseEntity.ok(userDto);

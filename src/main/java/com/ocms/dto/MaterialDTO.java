@@ -1,25 +1,26 @@
 package com.ocms.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+/**
+ * Data Transfer Object for Course Material.
+ * Supports file attachments and direct in-database textual content.
+ */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class MaterialDTO {
     private Long id;
     private String title;
     private String contentDescription;
     private String filePath;
+    private String contentData;
+    private String contentType;
     private Long courseId;
-
-    public MaterialDTO() {}
-
-    public MaterialDTO(Long id, String title, String contentDescription, String filePath, Long courseId) {
-        this.id = id;
-        this.title = title;
-        this.contentDescription = contentDescription;
-        this.filePath = filePath;
-        this.courseId = courseId;
-    }
-
-    public Long getId() { return id; }
-    public String getTitle() { return title; }
-    public String getContentDescription() { return contentDescription; }
-    public String getFilePath() { return filePath; }
-    public Long getCourseId() { return courseId; }
 }

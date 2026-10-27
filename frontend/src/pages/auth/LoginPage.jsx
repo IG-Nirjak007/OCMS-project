@@ -56,13 +56,14 @@ const LoginPage = () => {
 
           <form className="auth-form" onSubmit={handleSubmit}>
             <div className="form-group">
-              <label className="form-label">E-Mail</label>
+              <label className="form-label">Email or Username</label>
               <input
                 id="email"
                 name="email"
-                type="email"
+                type="text"
+                autoComplete="username"
                 className="form-input"
-                placeholder="you@example.com"
+                placeholder="you@example.com or username"
                 value={form.email}
                 onChange={handleChange}
                 required
@@ -85,6 +86,39 @@ const LoginPage = () => {
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
+
+          {/* Quick Demo Login Chips */}
+          <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+            <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginBottom: '0.5rem', textAlign: 'center' }}>
+              Quick Login Demo Accounts:
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: '0.78rem', justifyContent: 'flex-start', border: '1px solid var(--border)' }}
+                onClick={() => setForm({ email: 'prakashteacher1@gmail.com', password: 'prakashteacher' })}
+              >
+                👨‍🏫 <strong>Teacher:</strong> prakashteacher1@gmail.com
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: '0.78rem', justifyContent: 'flex-start', border: '1px solid var(--border)' }}
+                onClick={() => setForm({ email: 'admin@ocms.com', password: 'admin123' })}
+              >
+                ⚙️ <strong>Admin:</strong> admin@ocms.com
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: '0.78rem', justifyContent: 'flex-start', border: '1px solid var(--border)' }}
+                onClick={() => setForm({ email: 'student@ocms.com', password: 'student123' })}
+              >
+                🎓 <strong>Student:</strong> student@ocms.com
+              </button>
+            </div>
+          </div>
 
           <div className="auth-footer">
             <Link to="/forgot-password">Forgot password?</Link>

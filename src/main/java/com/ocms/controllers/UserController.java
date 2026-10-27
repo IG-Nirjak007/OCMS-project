@@ -27,10 +27,34 @@ public class UserController {
             return ResponseEntity.status(401).build();
         }
 
-        User user = userRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        String principal = userDetails.getUsername();
+        User user = userRepository.findByEmailIgnoreCase(principal)
+                .or(() -> userRepository.findByUsernameIgnoreCase(principal))
+                .or(() -> userRepository.findByEmail(principal))
+                .or(() -> userRepository.findByUsername(principal))
+                .orElseThrow(() -> new RuntimeException("User not found: " + principal));
 
         UserDTO userDto = new UserDTO(user.getId(), user.getUsername(), user.getEmail(), user.getRoles());
         return ResponseEntity.ok(userDto);
+    }
+
+    // GET /api/users/students - Accessible to TEACHER & ADMIN for admitting students to classrooms
+    @GetMapping("/students")
+    public ResponseEntity<java.util.List<UserDTO>> getStudents() {
+        java.util.List<UserDTO> students = userRepository.findAll().stream()
+                .filter(u -> u.getRoles().stream().anyMatch(r -> r.getName().contains("STUDENT")))
+                .map(com.ocms.dto.DTOMapper::toUserDTO)
+                .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(students);
+    }
+
+    // GET /api/users/teachers - Accessible to TEACHER & ADMIN for co-instructor assignment
+    @GetMapping("/teachers")
+    public ResponseEntity<java.util.List<UserDTO>> getTeachers() {
+        java.util.List<UserDTO> teachers = userRepository.findAll().stream()
+                .filter(u -> u.getRoles().stream().anyMatch(r -> r.getName().contains("TEACHER") || r.getName().contains("ADMIN")))
+                .map(com.ocms.dto.DTOMapper::toUserDTO)
+                .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(teachers);
     }
 }

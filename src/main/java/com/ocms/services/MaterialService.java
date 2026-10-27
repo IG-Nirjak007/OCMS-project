@@ -1,10 +1,8 @@
 package com.ocms.services;
-// Upload file path storage, fetch materials by course
 
 import com.ocms.exception.ResourceNotFoundException;
 import com.ocms.models.Course;
 import com.ocms.models.Material;
-import com.ocms.models.User;
 import com.ocms.repositories.CourseRepository;
 import com.ocms.repositories.EnrollmentRepository;
 import com.ocms.repositories.MaterialRepository;
@@ -15,7 +13,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Service for uploading and retrieving course materials.
+ * Service for uploading, saving, and retrieving course materials and study content.
  */
 @Service
 public class MaterialService {
@@ -44,13 +42,23 @@ public class MaterialService {
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
     }
 
-    public Material saveMaterial(Long courseId, String title, String description, MultipartFile file) {
+    public Material saveMaterial(Long courseId, String title, String description, String contentData, String contentType, MultipartFile file) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + courseId));
 
         Material material = new Material();
         material.setTitle(title);
         material.setContentDescription(description);
+        material.setContentData(contentData);
+
+        if (contentType != null && !contentType.isBlank()) {
+            material.setContentType(contentType);
+        } else if (contentData != null && !contentData.isBlank()) {
+            material.setContentType("NOTE");
+        } else {
+            material.setContentType("FILE");
+        }
+
         if (file != null && !file.isEmpty()) {
             String storedFileName = fileStorageService.storeFile(file);
             material.setFilePath(storedFileName);
@@ -60,8 +68,12 @@ public class MaterialService {
         return materialRepository.save(material);
     }
 
+    public Material saveMaterial(Long courseId, String title, String description, MultipartFile file) {
+        return saveMaterial(courseId, title, description, null, null, file);
+    }
+
     public Material saveMaterial(Long courseId, String title, MultipartFile file) {
-        return saveMaterial(courseId, title, null, file);
+        return saveMaterial(courseId, title, null, null, null, file);
     }
 
     public void deleteMaterial(Long materialId) {

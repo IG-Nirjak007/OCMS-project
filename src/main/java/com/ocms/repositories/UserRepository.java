@@ -34,6 +34,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     /**
+     * Find a user by email, ignoring case (e.g. test@gmail.com vs Test@Gmail.Com).
+     */
+    Optional<User> findByEmailIgnoreCase(String email);
+
+    /**
+     * Find a user by username, ignoring case.
+     */
+    Optional<User> findByUsernameIgnoreCase(String username);
+
+    /**
      * Check whether a username is already taken.
      * Used during registration to return a meaningful error before saving.
      *
@@ -50,4 +60,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return true if a user with this email exists
      */
     boolean existsByEmail(String email);
+
+    boolean existsByEmailIgnoreCase(String email);
+
+    boolean existsByUsernameIgnoreCase(String username);
 }

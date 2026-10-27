@@ -23,9 +23,17 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     @Transactional
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+    public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
+        if (identifier == null || identifier.isBlank()) {
+            throw new UsernameNotFoundException("Empty email or username provided");
+        }
+        String clean = identifier.trim();
+
+        User user = userRepository.findByEmailIgnoreCase(clean)
+                .or(() -> userRepository.findByUsernameIgnoreCase(clean))
+                .or(() -> userRepository.findByEmail(clean))
+                .or(() -> userRepository.findByUsername(clean))
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email or username: " + identifier));
 
         List<SimpleGrantedAuthority> authorities = user.getRoles().stream()
                 .map(role -> new SimpleGrantedAuthority(role.getName()))

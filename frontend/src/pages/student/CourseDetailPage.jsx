@@ -5,6 +5,7 @@ import Sidebar from '../../components/layout/Sidebar';
 import Footer from '../../components/layout/Footer';
 import client from '../../api/client';
 import { downloadAuthenticatedFile } from '../../utils/fileDownloader';
+import ContentViewerModal from '../../components/material/ContentViewerModal';
 
 const CourseDetailPage = () => {
   const { courseId } = useParams();
@@ -13,6 +14,7 @@ const CourseDetailPage = () => {
   const [materials, setMaterials] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [mySubmissions, setMySubmissions] = useState([]);
+  const [selectedViewingMaterial, setSelectedViewingMaterial] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -93,23 +95,49 @@ const CourseDetailPage = () => {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {materials.map((mat) => (
-                    <div key={mat.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'var(--surface-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                      <span>{mat.filePath?.endsWith('.pdf') ? '📄' : '🎬'}</span>
+                    <div key={mat.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.85rem', background: 'var(--surface-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: '1.4rem' }}>{mat.contentData ? '📖' : mat.filePath?.endsWith('.pdf') ? '📄' : '🎬'}</span>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{mat.title}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{mat.title}</span>
+                          <span
+                            style={{
+                              background: mat.contentData ? 'rgba(0, 194, 168, 0.12)' : 'rgba(99, 102, 241, 0.12)',
+                              color: mat.contentData ? 'var(--accent, #00c2a8)' : 'var(--primary, #3b82f6)',
+                              padding: '0.1rem 0.45rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.68rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {mat.contentType || (mat.contentData ? 'NOTE' : 'FILE')}
+                          </span>
+                        </div>
                         {mat.contentDescription && (
-                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>{mat.contentDescription}</div>
+                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{mat.contentDescription}</div>
                         )}
                       </div>
-                      {mat.filePath && (
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm"
-                          onClick={() => downloadAuthenticatedFile(`/materials/${mat.id}/download`, mat.title)}
-                        >
-                          Download
-                        </button>
-                      )}
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {mat.contentData && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setSelectedViewingMaterial(mat)}
+                            style={{ borderColor: 'var(--accent, #00c2a8)', color: 'var(--accent, #00c2a8)' }}
+                          >
+                            📖 Read Material
+                          </button>
+                        )}
+                        {mat.filePath && (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => downloadAuthenticatedFile(`/materials/${mat.id}/download`, mat.title)}
+                          >
+                            📥 Download
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -166,6 +194,10 @@ const CourseDetailPage = () => {
           </div>
         </main>
       </div>
+      <ContentViewerModal
+        material={selectedViewingMaterial}
+        onClose={() => setSelectedViewingMaterial(null)}
+      />
       <Footer />
     </div>
   );

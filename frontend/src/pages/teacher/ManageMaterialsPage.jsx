@@ -6,6 +6,7 @@ import Footer from '../../components/layout/Footer';
 import client from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { downloadAuthenticatedFile } from '../../utils/fileDownloader';
+import ContentViewerModal from '../../components/material/ContentViewerModal';
 
 const ManageMaterialsPage = () => {
   const { courseId } = useParams();
@@ -20,10 +21,13 @@ const ManageMaterialsPage = () => {
   const [studentLoading, setStudentLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Material Form State
+  // Material Form State & Content Viewer
   const [matTitle, setMatTitle] = useState('');
   const [matDesc, setMatDesc] = useState('');
+  const [matContentData, setMatContentData] = useState('');
+  const [matContentType, setMatContentType] = useState('NOTE');
   const [matFile, setMatFile] = useState(null);
+  const [selectedViewingMaterial, setSelectedViewingMaterial] = useState(null);
   const fileInputRef = useRef(null);
   const [matLoading, setMatLoading] = useState(false);
 
@@ -49,19 +53,14 @@ const ManageMaterialsPage = () => {
         client.get(`/courses/${courseId}/materials`),
         client.get(`/courses/${courseId}/assignments`),
         client.get(`/enrollments/course/${courseId}`),
-        client.get('/admin/users'), // if admin or teacher
+        client.get('/users/students'),
       ]);
       if (cRes.status === 'fulfilled') setCourse(cRes.value.data);
       if (mRes.status === 'fulfilled') setMaterials(mRes.value.data || []);
       if (aRes.status === 'fulfilled') setAssignments(aRes.value.data || []);
       if (eRes.status === 'fulfilled') setEnrollments(eRes.value.data || []);
       if (uRes.status === 'fulfilled') {
-        const studentsList = (uRes.value.data || []).filter(u => {
-          const roles = u.roles || [];
-          const roleStr = roles.map(r => typeof r === 'string' ? r : r.name).join(' ');
-          return roleStr.includes('STUDENT');
-        });
-        setAllStudents(studentsList);
+        setAllStudents(uRes.value.data || []);
       }
     } catch (err) {
       console.error(err);
@@ -101,25 +100,32 @@ const ManageMaterialsPage = () => {
 
   const handleMaterialSubmit = async (e) => {
     e.preventDefault();
-    if (!matFile) return alert('Please select a file');
+    if (!matFile && !matContentData.trim()) {
+      return alert('Please enter text content to save in the database or select a file to upload.');
+    }
     setMatLoading(true);
     setActionMessage('');
     try {
       const formData = new FormData();
       formData.append('title', matTitle);
       if (matDesc) formData.append('description', matDesc);
-      formData.append('file', matFile);
+      if (matContentData.trim()) formData.append('contentData', matContentData.trim());
+      formData.append('contentType', matContentType);
+      if (matFile) formData.append('file', matFile);
+
       const res = await client.post(`/courses/${courseId}/materials`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setMaterials([...materials, res.data]);
       setMatTitle('');
       setMatDesc('');
+      setMatContentData('');
+      setMatContentType('NOTE');
       setMatFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      setActionMessage('Material uploaded successfully.');
+      setActionMessage('Course material and content saved to database successfully.');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to upload material.');
+      alert(err.response?.data?.message || 'Failed to save material.');
     } finally {
       setMatLoading(false);
     }
@@ -365,7 +371,7 @@ const ManageMaterialsPage = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div className="card">
                 <div className="card-header">
-                  <h2 className="card-title">📁 Materials ({materials.length})</h2>
+                  <h2 className="card-title">📁 Materials & DB Content ({materials.length})</h2>
                 </div>
                 {materials.length === 0 ? (
                   <p className="text-muted text-sm text-center py-4">No materials uploaded yet.</p>
@@ -373,21 +379,50 @@ const ManageMaterialsPage = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {materials.map((mat) => (
                       <div key={mat.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'var(--surface-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: '1.5rem' }}>{mat.filePath?.endsWith('.pdf') ? '📄' : '🎬'}</div>
+                        <div style={{ fontSize: '1.5rem' }}>{mat.contentData ? '📖' : mat.filePath?.endsWith('.pdf') ? '📄' : '🎬'}</div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600 }}>{mat.title}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 600 }}>{mat.title}</span>
+                            <span
+                              style={{
+                                background: mat.contentData ? 'rgba(0, 194, 168, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                                color: mat.contentData ? 'var(--accent, #00c2a8)' : 'var(--primary, #3b82f6)',
+                                padding: '0.15rem 0.5rem',
+                                borderRadius: '9999px',
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {mat.contentType || (mat.contentData ? 'NOTE' : 'FILE')}
+                            </span>
+                            {mat.contentData && (
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>• Stored in DB</span>
+                            )}
+                          </div>
                           {mat.contentDescription && (
-                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>{mat.contentDescription}</div>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                              {mat.contentDescription}
+                            </div>
                           )}
                         </div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          {mat.contentData && (
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => setSelectedViewingMaterial(mat)}
+                              style={{ borderColor: 'var(--accent, #00c2a8)', color: 'var(--accent, #00c2a8)' }}
+                            >
+                              📖 View Content
+                            </button>
+                          )}
                           {mat.filePath && (
                             <button
                               type="button"
                               className="btn btn-secondary btn-sm"
                               onClick={() => downloadAuthenticatedFile(`/materials/${mat.id}/download`, mat.title)}
                             >
-                              Download
+                              📥 Download
                             </button>
                           )}
                           <button className="btn btn-danger btn-sm" onClick={() => handleDeleteMaterial(mat.id)}>Delete</button>
@@ -398,33 +433,71 @@ const ManageMaterialsPage = () => {
                 )}
               </div>
 
-              {/* Add Material Form */}
+              {/* Add Material / Content Form */}
               <div className="card">
-                <h3 className="card-title mb-4">Add New Material</h3>
+                <h3 className="card-title mb-2">Add New Material / In-DB Content</h3>
+                <p className="text-muted text-sm mb-4">
+                  Save reading materials, notes, or syllabi directly in PostgreSQL DB, attach files, or both.
+                </p>
                 <form onSubmit={handleMaterialSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <input
                     className="form-input"
-                    placeholder="Material Title"
+                    placeholder="Material Title (Required)"
                     value={matTitle}
                     onChange={(e) => setMatTitle(e.target.value)}
                     required
                   />
+
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: 'var(--font-size-xs)' }}>Content Category</label>
+                    <select
+                      className="form-input"
+                      value={matContentType}
+                      onChange={(e) => setMatContentType(e.target.value)}
+                    >
+                      <option value="NOTE">Lecture Notes / Summary (DB Stored)</option>
+                      <option value="ARTICLE">Reading Guide / Article (DB Stored)</option>
+                      <option value="SYLLABUS">Course Syllabus (DB Stored)</option>
+                      <option value="FILE">File Attachment (PDF / Slides / Media)</option>
+                    </select>
+                  </div>
+
                   <textarea
                     className="form-textarea"
-                    placeholder="Content description or notes (Optional)"
+                    placeholder="Brief description / overview (Optional)"
                     value={matDesc}
                     onChange={(e) => setMatDesc(e.target.value)}
                     rows={2}
                   />
-                  <input
-                    type="file"
-                    className="form-input"
-                    ref={fileInputRef}
-                    onChange={(e) => setMatFile(e.target.files[0])}
-                    required
-                  />
+
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: 'var(--font-size-xs)', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Direct Database Content Text (Saved in PostgreSQL)</span>
+                      <span style={{ color: 'var(--accent, #00c2a8)' }}>Accessible & Viewed Easily</span>
+                    </label>
+                    <textarea
+                      className="form-textarea"
+                      placeholder="Write or paste reading text, lesson content, markdown notes, code snippets, or syllabus here..."
+                      value={matContentData}
+                      onChange={(e) => setMatContentData(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontSize: 'var(--font-size-xs)' }}>
+                      Optional File Attachment (PDF, slides, video)
+                    </label>
+                    <input
+                      type="file"
+                      className="form-input"
+                      ref={fileInputRef}
+                      onChange={(e) => setMatFile(e.target.files[0])}
+                    />
+                  </div>
+
                   <button type="submit" className="btn btn-primary" disabled={matLoading}>
-                    {matLoading ? 'Uploading...' : 'Upload Material'}
+                    {matLoading ? 'Saving...' : '💾 Save Material to Database'}
                   </button>
                 </form>
               </div>
@@ -501,6 +574,10 @@ const ManageMaterialsPage = () => {
           </div>
         </main>
       </div>
+      <ContentViewerModal
+        material={selectedViewingMaterial}
+        onClose={() => setSelectedViewingMaterial(null)}
+      />
       <Footer />
     </div>
   );

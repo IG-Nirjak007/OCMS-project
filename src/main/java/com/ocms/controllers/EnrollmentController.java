@@ -26,12 +26,21 @@ public class EnrollmentController {
         this.userRepository = userRepository;
     }
 
+    private User getUserFromPrincipal(UserDetails userDetails) {
+        String p = userDetails.getUsername();
+        return userRepository.findByEmailIgnoreCase(p)
+                .or(() -> userRepository.findByUsernameIgnoreCase(p))
+                .or(() -> userRepository.findByEmail(p))
+                .or(() -> userRepository.findByUsername(p))
+                .orElseThrow(() -> new RuntimeException("User not found: " + p));
+    }
+
     // POST /api/enrollments - Enroll student in course (Self-enrollment or Admin/Teacher assigning a student)
     @PostMapping
     @PreAuthorize("hasRole('STUDENT') or hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<?> enrollStudent(@RequestBody Map<String, Long> payload, @AuthenticationPrincipal UserDetails userDetails) {
         Long courseId = payload.get("courseId");
-        User caller = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User caller = getUserFromPrincipal(userDetails);
         
         boolean isPrivileged = caller.getRoles().stream()
                 .anyMatch(r -> r.getName().contains("ADMIN") || r.getName().contains("TEACHER"));
@@ -59,7 +68,7 @@ public class EnrollmentController {
     @GetMapping
     @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN')")
     public ResponseEntity<List<Course>> getEnrolledCourses(@AuthenticationPrincipal UserDetails userDetails) {
-        User student = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User student = getUserFromPrincipal(userDetails);
         return ResponseEntity.ok(enrollmentService.getCoursesForStudent(student.getId()));
     }
     
@@ -77,7 +86,7 @@ public class EnrollmentController {
             @PathVariable Long courseId,
             @RequestParam(value = "studentId", required = false) Long studentId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        User caller = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User caller = getUserFromPrincipal(userDetails);
         boolean isPrivileged = caller.getRoles().stream()
                 .anyMatch(r -> r.getName().contains("ADMIN") || r.getName().contains("TEACHER"));
 

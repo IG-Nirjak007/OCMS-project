@@ -44,11 +44,20 @@ public class CourseController {
         return ResponseEntity.ok(courseService.getAllCourses());
     }
 
+    private User getUserFromPrincipal(UserDetails userDetails) {
+        String p = userDetails.getUsername();
+        return userRepository.findByEmailIgnoreCase(p)
+                .or(() -> userRepository.findByUsernameIgnoreCase(p))
+                .or(() -> userRepository.findByEmail(p))
+                .or(() -> userRepository.findByUsername(p))
+                .orElseThrow(() -> new RuntimeException("User not found: " + p));
+    }
+
     // Create course (supports assigning teacher and admitting students)
     @PostMapping
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<Course> createCourse(@RequestBody CourseCreateDTO dto, @AuthenticationPrincipal UserDetails userDetails) {
-        User currentUser = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User currentUser = getUserFromPrincipal(userDetails);
         
         Long targetInstructorId;
         boolean isAdmin = currentUser.getRoles().stream()

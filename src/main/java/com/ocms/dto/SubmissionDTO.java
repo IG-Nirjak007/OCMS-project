@@ -1,7 +1,18 @@
 package com.ocms.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
 
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class SubmissionDTO {
     private Long id;
     private String filePath;
@@ -10,24 +21,4 @@ public class SubmissionDTO {
     private LocalDateTime submittedAt;
     private Long assignmentId;
     private Long studentId;
-
-    public SubmissionDTO() {}
-
-    public SubmissionDTO(Long id, String filePath, Integer grade, String feedback, LocalDateTime submittedAt, Long assignmentId, Long studentId) {
-        this.id = id;
-        this.filePath = filePath;
-        this.grade = grade;
-        this.feedback = feedback;
-        this.submittedAt = submittedAt;
-        this.assignmentId = assignmentId;
-        this.studentId = studentId;
-    }
-
-    public Long getId() { return id; }
-    public String getFilePath() { return filePath; }
-    public Integer getGrade() { return grade; }
-    public String getFeedback() { return feedback; }
-    public LocalDateTime getSubmittedAt() { return submittedAt; }
-    public Long getAssignmentId() { return assignmentId; }
-    public Long getStudentId() { return studentId; }
 }

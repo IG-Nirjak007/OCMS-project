@@ -44,8 +44,8 @@ const RegisterPage = () => {
     setLoading(true);
     try {
       await register(form.username, form.email, form.password, form.role);
-      setSuccess('Account created! Redirecting to login...');
-      setTimeout(() => navigate('/login'), 1500);
+      setSuccess(`Account created as ${form.role === 'TEACHER' ? 'Teacher' : 'Student'}! Redirecting to sign in...`);
+      setTimeout(() => navigate('/login'), 1200);
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
@@ -60,13 +60,54 @@ const RegisterPage = () => {
           <div className="auth-logo">
             <div className="auth-logo-mark">🎓</div>
             <h1>Create Account</h1>
-            <p>Join the OCMS platform</p>
+            <p>Join OCMS as a student or instructor</p>
           </div>
 
           {error && <div className="auth-error">⚠ {error}</div>}
           {success && <div className="auth-success">✓ {success}</div>}
 
           <form className="auth-form" onSubmit={handleSubmit}>
+            {/* Role Selector Tabs */}
+            <div className="form-group">
+              <label className="form-label">I am joining as:</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, role: 'STUDENT' })}
+                  style={{
+                    padding: '0.65rem',
+                    borderRadius: 'var(--radius)',
+                    border: form.role === 'STUDENT' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                    background: form.role === 'STUDENT' ? 'rgba(99, 102, 241, 0.12)' : 'var(--surface-2)',
+                    color: form.role === 'STUDENT' ? 'var(--primary)' : 'var(--text-secondary)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: 'var(--font-size-sm)',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  🎓 Student
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, role: 'TEACHER' })}
+                  style={{
+                    padding: '0.65rem',
+                    borderRadius: 'var(--radius)',
+                    border: form.role === 'TEACHER' ? '2px solid var(--accent, #00c2a8)' : '1px solid var(--border)',
+                    background: form.role === 'TEACHER' ? 'rgba(0, 194, 168, 0.12)' : 'var(--surface-2)',
+                    color: form.role === 'TEACHER' ? 'var(--accent, #00c2a8)' : 'var(--text-secondary)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: 'var(--font-size-sm)',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  👨‍🏫 Teacher / Instructor
+                </button>
+              </div>
+            </div>
+
             <div className="form-group">
               <label className="form-label">Username</label>
               <input
@@ -74,7 +115,7 @@ const RegisterPage = () => {
                 name="username"
                 type="text"
                 className="form-input"
-                placeholder="johndoe"
+                placeholder={form.role === 'TEACHER' ? 'prakashteacher' : 'johndoe'}
                 value={form.username}
                 onChange={handleChange}
                 required
@@ -87,7 +128,7 @@ const RegisterPage = () => {
                 name="email"
                 type="email"
                 className="form-input"
-                placeholder="you@example.com"
+                placeholder={form.role === 'TEACHER' ? 'prakashteacher1@gmail.com' : 'you@example.com'}
                 value={form.email}
                 onChange={handleChange}
                 required
@@ -119,21 +160,9 @@ const RegisterPage = () => {
                 required
               />
             </div>
-            <div className="form-group">
-              <label className="form-label">Role</label>
-              <select
-                id="role"
-                name="role"
-                className="form-select"
-                value={form.role}
-                onChange={handleChange}
-              >
-                <option value="STUDENT">Student</option>
-                <option value="TEACHER">Teacher / Instructor</option>
-              </select>
-            </div>
+
             <button type="submit" className="auth-submit-btn" disabled={loading}>
-              {loading ? 'Creating account...' : 'Create Account'}
+              {loading ? 'Creating account...' : `Create ${form.role === 'TEACHER' ? 'Teacher' : 'Student'} Account`}
             </button>
           </form>
 

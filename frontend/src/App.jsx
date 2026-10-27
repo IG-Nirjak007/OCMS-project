@@ -62,8 +62,8 @@ function App() {
         <Route path="/dashboard" element={<DashboardRedirect />} />
         <Route path="/admin/dashboard" element={<Navigate to="/admin" replace />} />
 
-        {/* Student Routes */}
-        <Route element={<PrivateRoute allowedRoles={['ROLE_STUDENT', 'STUDENT']} />}>
+        {/* Student & Course Routes */}
+        <Route element={<PrivateRoute allowedRoles={['ROLE_STUDENT', 'STUDENT', 'ROLE_TEACHER', 'TEACHER', 'ROLE_ADMIN', 'ADMIN']} />}>
           <Route path="/student/dashboard" element={<StudentDashboardPage />} />
           <Route path="/my-courses" element={<MyCoursesPage />} />
           <Route path="/courses/:courseId" element={<CourseDetailPage />} />

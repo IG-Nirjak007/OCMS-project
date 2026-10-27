@@ -2,6 +2,7 @@ package com.ocms.controllers;
 
 import com.ocms.dto.DTOMapper;
 import com.ocms.dto.UserDTO;
+import com.ocms.models.User;
 import com.ocms.services.AdminService;
 import com.ocms.services.ReportService;
 import com.ocms.services.UserService;

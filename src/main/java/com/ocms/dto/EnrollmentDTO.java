@@ -1,7 +1,18 @@
 package com.ocms.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
 
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class EnrollmentDTO {
     private Long id;
     private Long studentId;
@@ -9,22 +20,4 @@ public class EnrollmentDTO {
     private Long courseId;
     private String courseTitle;
     private LocalDateTime enrolledAt;
-
-    public EnrollmentDTO() {}
-
-    public EnrollmentDTO(Long id, Long studentId, String studentName, Long courseId, String courseTitle, LocalDateTime enrolledAt) {
-        this.id = id;
-        this.studentId = studentId;
-        this.studentName = studentName;
-        this.courseId = courseId;
-        this.courseTitle = courseTitle;
-        this.enrolledAt = enrolledAt;
-    }
-
-    public Long getId() { return id; }
-    public Long getStudentId() { return studentId; }
-    public String getStudentName() { return studentName; }
-    public Long getCourseId() { return courseId; }
-    public String getCourseTitle() { return courseTitle; }
-    public LocalDateTime getEnrolledAt() { return enrolledAt; }
 }

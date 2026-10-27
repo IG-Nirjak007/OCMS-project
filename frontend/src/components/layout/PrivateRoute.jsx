@@ -21,7 +21,8 @@ const PrivateRoute = ({ allowedRoles }) => {
   if (!user) return <Navigate to="/login" replace />;
 
   if (allowedRoles && allowedRoles.length > 0) {
-    const permitted = hasRole(...allowedRoles);
+    const isUserAdmin = hasRole('ROLE_ADMIN', 'ADMIN');
+    const permitted = isUserAdmin || hasRole(...allowedRoles);
     if (!permitted) return <Navigate to="/unauthorized" replace />;
   }
 

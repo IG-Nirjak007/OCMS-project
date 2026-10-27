@@ -40,11 +40,20 @@ public class SubmissionController {
         this.fileStorageService = fileStorageService;
     }
 
+    private User getUserFromPrincipal(UserDetails userDetails) {
+        String p = userDetails.getUsername();
+        return userRepository.findByEmailIgnoreCase(p)
+                .or(() -> userRepository.findByUsernameIgnoreCase(p))
+                .or(() -> userRepository.findByEmail(p))
+                .or(() -> userRepository.findByUsername(p))
+                .orElseThrow(() -> new RuntimeException("User not found: " + p));
+    }
+
     // POST /api/submissions (JSON payload)
     @PostMapping
     @PreAuthorize("hasRole('STUDENT') or hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<?> submitAssignment(@RequestBody Map<String, Object> payload, @AuthenticationPrincipal UserDetails userDetails) {
-        User student = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User student = getUserFromPrincipal(userDetails);
         Long assignmentId = Long.valueOf(payload.get("assignmentId").toString());
         String fileUrl = (String) payload.get("fileUrl");
         String description = (String) payload.get("description");
@@ -66,7 +75,7 @@ public class SubmissionController {
             @RequestParam(value = "file", required = false) MultipartFile file,
             @RequestParam(value = "fileUrl", required = false) String fileUrl,
             @AuthenticationPrincipal UserDetails userDetails) {
-        User student = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User student = getUserFromPrincipal(userDetails);
 
         Submission submission;
         if (file != null && !file.isEmpty()) {
@@ -119,11 +128,13 @@ public class SubmissionController {
     // PUT /api/submissions/{id}/grade
     @PutMapping("/{id}/grade")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ResponseEntity<?> gradeSubmission(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> gradeSubmission(@PathVariable Long id, @RequestBody Map<String, Object> payload, @AuthenticationPrincipal UserDetails userDetails) {
+        User caller = getUserFromPrincipal(userDetails);
+        boolean isAdmin = caller.getRoles().stream().anyMatch(r -> r.getName().contains("ADMIN"));
         Integer grade = payload.get("grade") != null ? Integer.valueOf(payload.get("grade").toString()) : null;
         String feedback = (String) payload.get("feedback");
 
-        Submission submission = submissionService.gradeSubmission(id, grade, feedback);
+        Submission submission = submissionService.gradeSubmission(id, grade, feedback, caller.getId(), isAdmin);
 
         // Trigger async email alert to student
         try {
@@ -137,7 +148,21 @@ public class SubmissionController {
     // GET /api/submissions/me
     @GetMapping("/me")
     public ResponseEntity<List<Submission>> getMySubmissions(@AuthenticationPrincipal UserDetails userDetails) {
-        User student = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+        User student = getUserFromPrincipal(userDetails);
         return ResponseEntity.ok(submissionService.getSubmissionsForStudent(student.getId()));
+    }
+
+    // DELETE /api/submissions/{id} - Student can delete their own submission ONLY until the deadline
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN')")
+    public ResponseEntity<?> deleteSubmission(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
+        User caller = getUserFromPrincipal(userDetails);
+        boolean isAdmin = caller.getRoles().stream().anyMatch(r -> r.getName().contains("ADMIN"));
+        try {
+            submissionService.deleteSubmission(id, caller.getId(), isAdmin);
+            return ResponseEntity.ok(Map.of("message", "Submission deleted successfully."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 }

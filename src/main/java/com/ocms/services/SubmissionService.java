@@ -81,17 +81,26 @@ public class SubmissionService {
         return submissionRepository.findByAssignment(assignment);
     }
 
-    public Submission gradeSubmission(Long submissionId, Integer grade, String feedback) {
+    public Submission gradeSubmission(Long submissionId, Integer grade, String feedback, Long teacherId, boolean isAdmin) {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found: " + submissionId));
-        
+
+        if (!isAdmin) {
+            boolean isInstructor = submission.getAssignment().getCourse().getInstructors().stream()
+                    .anyMatch(inst -> inst.getId().equals(teacherId));
+            if (!isInstructor) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "You can only grade submissions for classrooms where you are assigned as an instructor.");
+            }
+        }
+
         if (grade != null) {
             submission.setGrade(grade);
         }
         if (feedback != null) {
             submission.setFeedback(feedback);
         }
-        
+
         return submissionRepository.save(submission);
     }
     
@@ -99,5 +108,31 @@ public class SubmissionService {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + studentId));
         return submissionRepository.findByStudent(student);
+    }
+
+    /**
+     * Delete an assignment submission.
+     * Enforces deadline check: submissions can ONLY be edited or deleted until the deadline.
+     */
+    public void deleteSubmission(Long submissionId, Long studentId, boolean isAdmin) {
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission not found: " + submissionId));
+
+        if (!isAdmin && !submission.getStudent().getId().equals(studentId)) {
+            throw new org.springframework.security.access.AccessDeniedException("You are not authorized to delete this submission.");
+        }
+
+        // Deadline check: only allow deleting if deadline has not passed
+        if (!isAdmin && submission.getAssignment().getDueDate() != null &&
+                java.time.LocalDateTime.now().isAfter(submission.getAssignment().getDueDate())) {
+            throw new IllegalArgumentException("Cannot delete submission after the assignment deadline has passed (" +
+                    submission.getAssignment().getDueDate() + ").");
+        }
+
+        if (submission.getFilePath() != null && !submission.getFilePath().startsWith("http")) {
+            fileStorageService.deleteFile(submission.getFilePath());
+        }
+
+        submissionRepository.delete(submission);
     }
 }

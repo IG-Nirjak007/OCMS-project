@@ -1,16 +1,19 @@
 package com.ocms.models;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 /**
  * Represents a student's submission for an assignment.
- * A submission is linked to a specific {@link Assignment} and
- * the {@link User} (student) who submitted it.
- *
- * Instructors can grade submissions by setting a numeric score
- * and optional feedback comment.
+ * A submission is linked to a specific Assignment and User (student).
+ * Instructors can grade submissions and leave feedback.
+ * Uses Lombok for automated accessors and constructor generation.
  */
 @Entity
 @Table(
@@ -19,119 +22,44 @@ import java.time.LocalDateTime;
         @UniqueConstraint(columnNames = {"student_id", "assignment_id"})
     }
 )
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Submission {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** The student who made this submission. */
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"password", "hibernateLazyInitializer", "handler"})
+    @ManyToOne(optional = false, fetch = FetchType.EAGER)
     @JoinColumn(name = "student_id")
     private User student;
 
-    /** The assignment this submission belongs to. */
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"course", "hibernateLazyInitializer", "handler"})
+    @ManyToOne(optional = false, fetch = FetchType.EAGER)
     @JoinColumn(name = "assignment_id")
     private Assignment assignment;
 
-    /**
-     * Optional path to an uploaded file (e.g. PDF, ZIP).
-     * Stored/served via FileStorageService.
-     */
     private String filePath;
 
-    /** Short description or text-based answer from the student. */
     @Column(length = 2000)
     private String description;
 
-    /** Timestamp when the submission was made. */
     @Column(nullable = false)
+    @Builder.Default
     private LocalDateTime submittedAt = LocalDateTime.now();
 
-    /**
-     * Numeric grade assigned by the instructor (0–100).
-     * Null until graded.
-     */
     private Integer grade;
 
-    /** Optional instructor feedback comment. */
     @Column(length = 1000)
     private String feedback;
 
-    // ---------------------------------------------------------------
-    // Constructors
-    // ---------------------------------------------------------------
-
-    public Submission() {
-    }
-
     public Submission(User student, Assignment assignment) {
-        this.student    = student;
-        this.assignment = assignment;
-    }
-
-    // ---------------------------------------------------------------
-    // Getters & Setters
-    // ---------------------------------------------------------------
-
-    public Long getId() {
-        return id;
-    }
-
-    public User getStudent() {
-        return student;
-    }
-
-    public void setStudent(User student) {
         this.student = student;
-    }
-
-    public Assignment getAssignment() {
-        return assignment;
-    }
-
-    public void setAssignment(Assignment assignment) {
         this.assignment = assignment;
-    }
-
-    public String getFilePath() {
-        return filePath;
-    }
-
-    public void setFilePath(String filePath) {
-        this.filePath = filePath;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public LocalDateTime getSubmittedAt() {
-        return submittedAt;
-    }
-
-    public void setSubmittedAt(LocalDateTime submittedAt) {
-        this.submittedAt = submittedAt;
-    }
-
-    public Integer getGrade() {
-        return grade;
-    }
-
-    public void setGrade(Integer grade) {
-        this.grade = grade;
-    }
-
-    public String getFeedback() {
-        return feedback;
-    }
-
-    public void setFeedback(String feedback) {
-        this.feedback = feedback;
+        this.submittedAt = LocalDateTime.now();
     }
 }

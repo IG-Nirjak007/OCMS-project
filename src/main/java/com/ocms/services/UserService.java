@@ -33,8 +33,21 @@ public class UserService {
      * Throws IllegalArgumentException if the username is already taken.
      */
     public User register(String username, String email, String rawPassword, String roleName) {
-        if (userRepository.findByUsername(username).isPresent()) {
+        String cleanUsername = username != null ? username.trim() : "";
+        String cleanEmail = email != null ? email.trim().toLowerCase() : "";
+
+        if (cleanUsername.isBlank()) {
+            throw new IllegalArgumentException("Username cannot be empty");
+        }
+        if (cleanEmail.isBlank()) {
+            throw new IllegalArgumentException("Email cannot be empty");
+        }
+
+        if (userRepository.findByUsernameIgnoreCase(cleanUsername).isPresent()) {
             throw new IllegalArgumentException("Username is already taken");
+        }
+        if (userRepository.findByEmailIgnoreCase(cleanEmail).isPresent()) {
+            throw new IllegalArgumentException("An account with this email already exists");
         }
 
         String formattedRole = roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName.toUpperCase();
@@ -42,8 +55,8 @@ public class UserService {
                 .orElseGet(() -> roleRepository.save(new Role(formattedRole)));
 
         User user = new User();
-        user.setUsername(username);
-        user.setEmail(email);
+        user.setUsername(cleanUsername);
+        user.setEmail(cleanEmail);
         user.setPassword(passwordEncoder.encode(rawPassword));
         user.setRoles(Collections.singleton(role));
 

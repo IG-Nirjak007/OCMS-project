@@ -25,8 +25,8 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
 
-    @ExceptionHandler(UnauthorizedAccessException.class)
-    public ResponseEntity<Map<String, Object>> handleUnauthorized(UnauthorizedAccessException ex) {
+    @ExceptionHandler({UnauthorizedAccessException.class, org.springframework.security.access.AccessDeniedException.class})
+    public ResponseEntity<Map<String, Object>> handleUnauthorized(Exception ex) {
         Map<String, Object> response = new HashMap<>();
         response.put("timestamp", LocalDateTime.now());
         response.put("status", HttpStatus.FORBIDDEN.value());

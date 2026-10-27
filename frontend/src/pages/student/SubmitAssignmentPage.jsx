@@ -81,6 +81,32 @@ const SubmitAssignmentPage = () => {
     }
   };
 
+  const handleDeleteSubmission = async () => {
+    if (!mySubmission) return;
+    if (isDeadlinePassed) {
+      alert('The deadline has passed. Submissions can no longer be deleted.');
+      return;
+    }
+    if (!window.confirm('Are you sure you want to delete your submission? You can submit again before the deadline.')) {
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+    setSuccess('');
+    try {
+      await client.delete(`/submissions/${mySubmission.id}`);
+      setMySubmission(null);
+      setDescription('');
+      setFileUrl('');
+      setFileToUpload(null);
+      setSuccess('Submission deleted successfully. You can resubmit anytime before the deadline.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete submission.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const isDeadlinePassed = assignment?.dueDate ? new Date(assignment.dueDate) < new Date() : false;
 
   return (
@@ -220,19 +246,33 @@ const SubmitAssignmentPage = () => {
                     </div>
                   )}
 
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={submitting || isDeadlinePassed || !description.trim()}
-                  >
-                    {submitting
-                      ? 'Submitting...'
-                      : isDeadlinePassed
-                      ? '🔒 Deadline Passed (Submissions Closed)'
-                      : mySubmission
-                      ? '✏️ Update / Resubmit Assignment'
-                      : 'Submit Assignment'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      style={{ flex: 1 }}
+                      disabled={submitting || isDeadlinePassed || !description.trim()}
+                    >
+                      {submitting
+                        ? 'Saving...'
+                        : isDeadlinePassed
+                        ? '🔒 Deadline Passed (Submissions Closed)'
+                        : mySubmission
+                        ? '✏️ Update / Resubmit Assignment'
+                        : 'Submit Assignment'}
+                    </button>
+
+                    {!isDeadlinePassed && mySubmission && (
+                      <button
+                        type="button"
+                        className="btn btn-danger"
+                        onClick={handleDeleteSubmission}
+                        disabled={submitting}
+                      >
+                        🗑 Delete Submission
+                      </button>
+                    )}
+                  </div>
                 </form>
               </div>
             )}

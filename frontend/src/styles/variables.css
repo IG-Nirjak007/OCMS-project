@@ -1,66 +1,87 @@
 :root {
-  /* Brand Colors */
-  --primary: #6366f1;
-  --primary-dark: #4f46e5;
-  --primary-light: #818cf8;
-  --primary-ghost: rgba(99, 102, 241, 0.12);
+  /* ── Minimalist & Engaging LMS Design System (LearnWorlds Palette) ───────────
+   * 60% → Airy, crisp, minimal white canvas (#ffffff & #f8fafc)
+   * 30% → Modern high-contrast structural slate / dark charcoal (#18202b)
+   * 10% → Signature seafoam mint turquoise accent (#54c6b8) for engaging CTAs
+   * ───────────────────────────────────────────────────────────────────────── */
 
-  --secondary: #10b981;
+  /* Primary Brand & Structural Slate */
+  --primary:        #18202b;   /* Structural dark slate / charcoal     */
+  --primary-dark:   #11161f;   /* Deepest midnight charcoal            */
+  --primary-light:  #2d3748;   /* Medium slate                         */
+  --primary-ghost:  rgba(24, 32, 43, 0.05);
+
+  /* Signature Mint-Teal / Turquoise Accent (Exact LearnWorlds CTA tone) */
+  --accent:         #54c6b8;   /* Primary pill CTA buttons             */
+  --accent-dark:    #42b3a5;   /* Hover state for primary CTA          */
+  --accent-light:   #7cd7cc;   /* Light cyan/teal highlight            */
+  --accent-ghost:   rgba(84, 198, 184, 0.12);
+  --accent-glow:    rgba(84, 198, 184, 0.28);
+
+  /* Warm Secondary & Semantic Accents */
+  --secondary:      #10b981;   /* Success / enrollment                 */
   --secondary-dark: #059669;
+  --danger:         #ef4444;   /* Errors & deletion                    */
+  --danger-dark:    #dc2626;
+  --warning:        #f59e0b;   /* Deadlines & alerts                   */
+  --info:           #0ea5e9;   /* Informational cyan                   */
+  --yellow-accent:  #ffd037;   /* Builder mockup button accent         */
+  --purple-badge:   #8b5cf6;   /* AI Assistant badge gradient          */
+  --dark-banner-bg: #1e2229;   /* Dark graphite bottom AI banner       */
 
-  --danger: #ef4444;
-  --danger-dark: #dc2626;
-  --warning: #f59e0b;
-  --info: #3b82f6;
+  /* Minimal Surfaces & Backgrounds */
+  --bg:             #ffffff;   /* Pure crisp white page background     */
+  --bg-subtle:      #fafbfc;   /* Subtle canvas off-white              */
+  --surface:        #ffffff;   /* Pure white card / panel surface      */
+  --surface-2:      #f8fafc;   /* Soft slate secondary card surface    */
+  --surface-3:      #f1f5f9;   /* Muted inner container surface        */
+  --border:         #e8edf2;   /* Minimalist airy border               */
+  --border-focus:   #54c6b8;   /* Input focus ring                     */
 
-  /* Surfaces */
-  --bg: #f1f5f9;
-  --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --border: #e2e8f0;
-  --border-focus: #6366f1;
+  /* High-Contrast Minimalist Typography */
+  --text:           #18202b;   /* High-contrast crisp dark charcoal    */
+  --text-muted:     #526071;   /* Elegant secondary slate (WCAG AAA)   */
+  --text-light:     #8a99ad;   /* Subtle label / placeholder           */
+  --text-white:     #ffffff;
 
-  /* Text */
-  --text: #0f172a;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
-  --text-white: #ffffff;
+  /* App Navigation */
+  --sidebar-bg:          #18202b;   /* Clean dark slate sidebar         */
+  --sidebar-hover:       #222c3b;   /* Hover bg                         */
+  --sidebar-active:      rgba(84, 198, 184, 0.14);
+  --sidebar-text:        #9aa6b8;
+  --sidebar-text-active: #54c6b8;
 
-  /* Sidebar / Navbar */
-  --sidebar-bg: #1e293b;
-  --sidebar-hover: #334155;
-  --sidebar-active: rgba(99, 102, 241, 0.2);
-  --sidebar-text: #94a3b8;
-  --sidebar-text-active: #ffffff;
+  /* Modern Soft Elevation & Glassmorphism */
+  --shadow-xs:     0 1px 2px rgba(24, 32, 43, 0.04);
+  --shadow-sm:     0 2px 8px rgba(24, 32, 43, 0.05);
+  --shadow-md:     0 6px 20px rgba(24, 32, 43, 0.07);
+  --shadow-lg:     0 14px 38px rgba(24, 32, 43, 0.10);
+  --shadow-xl:     0 24px 60px rgba(24, 32, 43, 0.14);
+  --shadow-mockup: 0 25px 60px -12px rgba(24, 32, 43, 0.22);
+  --shadow-accent: 0 8px 24px rgba(84, 198, 184, 0.35);
 
-  /* Elevation */
-  --shadow-xs: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.1);
-  --shadow-lg: 0 8px 30px rgba(0,0,0,0.14);
-  --shadow-xl: 0 20px 60px rgba(0,0,0,0.25);
-
-  /* Layout */
-  --navbar-height: 62px;
-  --sidebar-width: 240px;
-  --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
-  --radius-full: 9999px;
+  /* Layout Tokens */
+  --navbar-height: 74px;
+  --sidebar-width: 250px;
+  --radius-sm:     6px;
+  --radius:        10px;
+  --radius-lg:     16px;
+  --radius-xl:     24px;
+  --radius-full:   9999px;     /* Signature pill buttons & badges      */
 
   /* Typography */
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
+  --font:          'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:     'JetBrains Mono', 'Fira Code', monospace;
+  --font-size-xs:   0.75rem;
+  --font-size-sm:   0.875rem;
   --font-size-base: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.5rem;
-  --font-size-3xl: 2rem;
+  --font-size-lg:   1.125rem;
+  --font-size-xl:   1.25rem;
+  --font-size-2xl:  1.65rem;
+  --font-size-3xl:  2.4rem;
+  --font-size-hero: 3.25rem;
 
-  /* Transition */
-  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Micro-Interaction Transitions */
+  --transition:      all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
