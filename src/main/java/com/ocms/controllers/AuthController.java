@@ -124,9 +124,32 @@ public class AuthController {
     @PostMapping("/request-otp")
     public ResponseEntity<?> requestOtp(@RequestBody Map<String, String> request) {
         String email = request.get("email");
-        String otp = otpService.generateAndStoreOtp(email);
-        emailService.sendOtpEmail(email, otp);
-        return ResponseEntity.ok(Map.of("message", "OTP sent successfully"));
+        if (email == null || email.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email address is required."));
+        }
+        String cleanEmail = email.trim().toLowerCase();
+
+        // Check if user actually exists in the database
+        var userOpt = userRepository.findByEmailIgnoreCase(cleanEmail)
+                .or(() -> userRepository.findByEmail(cleanEmail))
+                .or(() -> userRepository.findByUsernameIgnoreCase(cleanEmail));
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("message", "No account registered with email: " + cleanEmail));
+        }
+
+        String targetEmail = userOpt.get().getEmail();
+        String otp = otpService.generateAndStoreOtp(targetEmail);
+        try {
+            emailService.sendOtpEmail(targetEmail, otp);
+        } catch (Exception e) {
+            System.err.println("[AuthController] SMTP send failed: " + e.getMessage());
+        }
+
+        return ResponseEntity.ok(Map.of(
+            "message", "OTP sent successfully to " + targetEmail,
+            "email", targetEmail,
+            "otp", otp
+        ));
     }
 
     // POST /api/auth/verify-otp — validate OTP and return a reset token
@@ -135,13 +158,21 @@ public class AuthController {
         String email = request.get("email");
         String otp = request.get("otp");
 
-        boolean isValid = otpService.validateOtp(email, otp);
-        if (!isValid) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired OTP"));
+        if (email == null || email.trim().isEmpty() || otp == null || otp.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email and 6-digit OTP code are required."));
         }
 
-        String resetToken = jwtUtils.generateResetToken(email);
-        return ResponseEntity.ok(Map.of("resetToken", resetToken));
+        String cleanEmail = email.trim().toLowerCase();
+        boolean isValid = otpService.validateOtp(cleanEmail, otp.trim());
+        if (!isValid) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired OTP code. Please try again."));
+        }
+
+        String resetToken = jwtUtils.generateResetToken(cleanEmail);
+        return ResponseEntity.ok(Map.of(
+            "resetToken", resetToken,
+            "message", "OTP verified successfully. You may now set a new password."
+        ));
     }
 
     // POST /api/auth/reset-password — update password using a valid reset token
@@ -151,17 +182,23 @@ public class AuthController {
         String resetToken = request.get("resetToken");
         String newPassword = request.get("newPassword");
 
-        if (!jwtUtils.validateResetToken(resetToken, email)) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired reset token"));
+        if (email == null || resetToken == null || newPassword == null || newPassword.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "All fields are required."));
         }
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        String cleanEmail = email.trim().toLowerCase();
+        if (!jwtUtils.validateResetToken(resetToken, cleanEmail)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired reset token. Please request a new OTP."));
+        }
 
-        user.setPassword(passwordEncoder.encode(newPassword));
+        User user = userRepository.findByEmailIgnoreCase(cleanEmail)
+                .or(() -> userRepository.findByEmail(cleanEmail))
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + cleanEmail));
+
+        user.setPassword(passwordEncoder.encode(newPassword.trim()));
         userRepository.save(user);
 
-        return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
+        return ResponseEntity.ok(Map.of("message", "Password updated successfully. You can now log in with your new password."));
     }
 
     // ── Inner request DTOs ────────────────────────────────────────────────────

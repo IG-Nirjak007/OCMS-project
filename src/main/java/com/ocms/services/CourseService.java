@@ -49,13 +49,11 @@ public class CourseService {
         this.fileStorageService = fileStorageService;
     }
 
-    @Cacheable(value = "courses")
+    // Live database query ensures immediate, active synchronization with PostgreSQL
     public List<Course> getAllCourses() {
         return courseRepository.findAll();
     }
 
-    // Clears 'courses' cache in Redis whenever a new course is added
-    @CacheEvict(value = "courses", allEntries = true)
     public Course createCourse(Course course, Long instructorId) {
         User instructor = userRepository.findById(instructorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Instructor not found"));
@@ -73,7 +71,6 @@ public class CourseService {
         return courseRepository.save(course);
     }
 
-    @CacheEvict(value = "courses", allEntries = true)
     public Course addInstructorByEmail(Long courseId, String email) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
@@ -83,7 +80,6 @@ public class CourseService {
         return courseRepository.save(course);
     }
 
-    @CacheEvict(value = "courses", allEntries = true)
     public Course removeInstructor(Long courseId, Long instructorId) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
@@ -96,7 +92,6 @@ public class CourseService {
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found with id " + id));
     }
 
-    @CacheEvict(value = "courses", allEntries = true)
     public Course updateCourse(Long id, Course courseDetails) {
         Course course = getCourseById(id);
         course.setTitle(courseDetails.getTitle());
@@ -106,7 +101,6 @@ public class CourseService {
     }
 
     @Transactional
-    @CacheEvict(value = "courses", allEntries = true)
     public void deleteCourse(Long id) {
         Course course = getCourseById(id);
 

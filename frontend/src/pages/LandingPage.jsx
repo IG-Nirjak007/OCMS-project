@@ -10,12 +10,26 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
+  const [coursesError, setCoursesError] = useState(false);
+
+  const fetchLiveCourses = () => {
+    setLoadingCourses(true);
+    setCoursesError(false);
+    client.get('/courses')
+      .then((res) => {
+        setCourses(res.data || []);
+        setCoursesError(false);
+      })
+      .catch((err) => {
+        console.error('[LandingPage] Failed to fetch live courses:', err);
+        setCourses([]);
+        setCoursesError(true);
+      })
+      .finally(() => setLoadingCourses(false));
+  };
 
   useEffect(() => {
-    client.get('/courses')
-      .then((res) => setCourses(res.data || []))
-      .catch(() => setCourses([]))
-      .finally(() => setLoadingCourses(false));
+    fetchLiveCourses();
   }, []);
 
   const getDashboardPath = () => {
@@ -166,6 +180,15 @@ const LandingPage = () => {
 
           {loadingCourses ? (
             <div className="loading-spinner"><div className="spinner" /></div>
+          ) : coursesError ? (
+            <div className="empty-state">
+              <div className="empty-icon">⚠️</div>
+              <div className="empty-title">Connecting to Server...</div>
+              <div className="empty-desc mb-4">Could not retrieve live classrooms. Please verify the backend server is running.</div>
+              <button className="btn btn-primary btn-sm" onClick={fetchLiveCourses}>
+                🔄 Retry Connection
+              </button>
+            </div>
           ) : courses.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">🏫</div>

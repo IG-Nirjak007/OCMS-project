@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../../components/layout/Navbar';
 import Sidebar from '../../components/layout/Sidebar';
 import Footer from '../../components/layout/Footer';
@@ -11,7 +11,13 @@ import ContentViewerModal from '../../components/material/ContentViewerModal';
 const ManageMaterialsPage = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin } = useAuth();
+
+  // Active sub-navigation tab: 'materials' | 'assignments' | 'students' | 'instructors'
+  const initialTab = searchParams.get('tab') || 'materials';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
   const [course, setCourse] = useState(null);
   const [materials, setMaterials] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -46,6 +52,11 @@ const ManageMaterialsPage = () => {
     fetchCourseData();
   }, [courseId]);
 
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
+
   const fetchCourseData = async () => {
     try {
       const [cRes, mRes, aRes, eRes, uRes] = await Promise.allSettled([
@@ -59,9 +70,7 @@ const ManageMaterialsPage = () => {
       if (mRes.status === 'fulfilled') setMaterials(mRes.value.data || []);
       if (aRes.status === 'fulfilled') setAssignments(aRes.value.data || []);
       if (eRes.status === 'fulfilled') setEnrollments(eRes.value.data || []);
-      if (uRes.status === 'fulfilled') {
-        setAllStudents(uRes.value.data || []);
-      }
+      if (uRes.status === 'fulfilled') setAllStudents(uRes.value.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -69,6 +78,7 @@ const ManageMaterialsPage = () => {
     }
   };
 
+  // --- Student Enrollment Handlers ---
   const handleAdmitStudent = async (e) => {
     e.preventDefault();
     if (!selectedStudentId) return;
@@ -91,13 +101,14 @@ const ManageMaterialsPage = () => {
     if (!window.confirm('Remove this student from the classroom?')) return;
     try {
       await client.delete(`/enrollments/course/${courseId}/students/${studentId}`);
-      setEnrollments(enrollments.filter(e => e.student?.id !== studentId));
+      setEnrollments(enrollments.filter((e) => e.student?.id !== studentId));
       setActionMessage('Student removed from classroom.');
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to remove student.');
     }
   };
 
+  // --- Material Handlers ---
   const handleMaterialSubmit = async (e) => {
     e.preventDefault();
     if (!matFile && !matContentData.trim()) {
@@ -136,11 +147,13 @@ const ManageMaterialsPage = () => {
     try {
       await client.delete(`/materials/${id}`);
       setMaterials(materials.filter((m) => m.id !== id));
+      setActionMessage('Material deleted.');
     } catch (err) {
       alert('Failed to delete.');
     }
   };
 
+  // --- Assignment Handlers ---
   const handleAssignmentSubmit = async (e) => {
     e.preventDefault();
     setAsgLoading(true);
@@ -170,11 +183,13 @@ const ManageMaterialsPage = () => {
     try {
       await client.delete(`/assignments/${id}`);
       setAssignments(assignments.filter((a) => a.id !== id));
+      setActionMessage('Assignment deleted.');
     } catch (err) {
       alert('Failed to delete.');
     }
   };
 
+  // --- Instructor Handlers ---
   const handleAddCoInstructor = async (e) => {
     e.preventDefault();
     if (!coInstructorEmail.trim()) return;
@@ -223,163 +238,146 @@ const ManageMaterialsPage = () => {
       <div className="page-layout">
         <Sidebar />
         <main className="main-content">
-          <button className="btn btn-ghost btn-sm mb-4" onClick={() => navigate(isAdmin?.() ? '/admin' : '/teacher/dashboard')}>
+          <button
+            className="btn btn-ghost btn-sm mb-4"
+            onClick={() => navigate(isAdmin?.() ? '/admin' : '/teacher/dashboard')}
+          >
             ← Back to {isAdmin?.() ? 'Admin Dashboard' : 'Teacher Dashboard'}
           </button>
 
           <div className="page-header">
             <div>
-              <h1 className="page-title">{course?.title} - Management</h1>
-              <p className="page-subtitle">Manage curriculum materials, assignments, and teaching staff</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <h1 className="page-title">{course?.title}</h1>
+                <span className="badge badge-primary">Classroom Hub</span>
+              </div>
+              <p className="page-subtitle">
+                {course?.description || 'Manage curriculum materials, assignments, deadlines, enrolled students, and teaching staff.'}
+              </p>
             </div>
           </div>
 
           {actionMessage && <div className="alert alert-success mb-4">✓ {actionMessage}</div>}
 
-          {/* Co-Instructors Section */}
-          <div className="card mb-6">
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h2 className="card-title">👨‍🏫 Course Teaching Staff & Co-Instructors</h2>
-                <p className="text-muted text-sm">Collaborative teaching team for this course</p>
-              </div>
-            </div>
+          {/* Sub-Navigation Bar for Classroom Management */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '0.5rem',
+              borderBottom: '2px solid var(--border)',
+              marginBottom: '1.75rem',
+              overflowX: 'auto',
+              paddingBottom: '0.25rem',
+            }}
+          >
+            <button
+              type="button"
+              className={`btn btn-sm ${activeTab === 'materials' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => switchTab('materials')}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderRadius: 'var(--radius) var(--radius) 0 0' }}
+            >
+              <span>📁</span>
+              <span>Study Materials & DB Content</span>
+              <span style={{
+                background: activeTab === 'materials' ? 'rgba(255,255,255,0.25)' : 'var(--surface-2)',
+                padding: '0.1rem 0.45rem',
+                borderRadius: '9999px',
+                fontSize: '0.75rem',
+              }}>
+                {materials.length}
+              </span>
+            </button>
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
-              {course?.instructors && course.instructors.length > 0 ? (
-                course.instructors.map((inst) => (
-                  <div
-                    key={inst.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.5rem 0.75rem',
-                      background: 'var(--surface-2)',
-                      borderRadius: 'var(--radius)',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    <span>👤</span>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{inst.username}</div>
-                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>{inst.email}</div>
-                    </div>
-                    {course.instructors.length > 1 && (
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        style={{ color: 'var(--danger)', padding: '0.2rem 0.4rem', marginLeft: '0.5rem' }}
-                        title="Remove co-instructor"
-                        onClick={() => handleRemoveCoInstructor(inst.id)}
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p className="text-muted text-sm">No instructors listed.</p>
-              )}
-            </div>
+            <button
+              type="button"
+              className={`btn btn-sm ${activeTab === 'assignments' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => switchTab('assignments')}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderRadius: 'var(--radius) var(--radius) 0 0' }}
+            >
+              <span>📝</span>
+              <span>Assignments & Deadlines</span>
+              <span style={{
+                background: activeTab === 'assignments' ? 'rgba(255,255,255,0.25)' : 'var(--surface-2)',
+                padding: '0.1rem 0.45rem',
+                borderRadius: '9999px',
+                fontSize: '0.75rem',
+              }}>
+                {assignments.length}
+              </span>
+            </button>
 
-            <form onSubmit={handleAddCoInstructor} style={{ display: 'flex', gap: '0.75rem', maxWidth: '480px' }}>
-              <input
-                type="email"
-                className="form-input"
-                placeholder="Enter co-instructor email..."
-                value={coInstructorEmail}
-                onChange={(e) => setCoInstructorEmail(e.target.value)}
-                required
-              />
-              <button type="submit" className="btn btn-secondary" disabled={coInstructorLoading}>
-                {coInstructorLoading ? 'Adding...' : '+ Add Co-Instructor'}
-              </button>
-            </form>
+            <button
+              type="button"
+              className={`btn btn-sm ${activeTab === 'students' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => switchTab('students')}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderRadius: 'var(--radius) var(--radius) 0 0' }}
+            >
+              <span>🎓</span>
+              <span>Admitted Students</span>
+              <span style={{
+                background: activeTab === 'students' ? 'rgba(255,255,255,0.25)' : 'var(--surface-2)',
+                padding: '0.1rem 0.45rem',
+                borderRadius: '9999px',
+                fontSize: '0.75rem',
+              }}>
+                {enrollments.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`btn btn-sm ${activeTab === 'instructors' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => switchTab('instructors')}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderRadius: 'var(--radius) var(--radius) 0 0' }}
+            >
+              <span>👨‍🏫</span>
+              <span>Teaching Staff</span>
+              <span style={{
+                background: activeTab === 'instructors' ? 'rgba(255,255,255,0.25)' : 'var(--surface-2)',
+                padding: '0.1rem 0.45rem',
+                borderRadius: '9999px',
+                fontSize: '0.75rem',
+              }}>
+                {course?.instructors?.length || 0}
+              </span>
+            </button>
           </div>
 
-          {/* Admitted / Enrolled Students Section */}
-          <div className="card mb-6">
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h2 className="card-title">🎓 Admitted Students ({enrollments.length})</h2>
-                <p className="text-muted text-sm">Students enrolled and admitted to this classroom</p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
-              {enrollments.length > 0 ? (
-                enrollments.map((enr) => (
-                  <div
-                    key={enr.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.5rem 0.75rem',
-                      background: 'var(--surface-2)',
-                      borderRadius: 'var(--radius)',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    <span>🎓</span>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{enr.student?.username || `Student #${enr.student?.id}`}</div>
-                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>{enr.student?.email}</div>
-                    </div>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      style={{ color: 'var(--danger)', padding: '0.2rem 0.4rem', marginLeft: '0.5rem' }}
-                      title="Remove student from classroom"
-                      onClick={() => handleRemoveStudent(enr.student?.id)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))
-              ) : (
-                <p className="text-muted text-sm">No students currently enrolled.</p>
-              )}
-            </div>
-
-            {/* Admit Student Form */}
-            {allStudents.length > 0 ? (
-              <form onSubmit={handleAdmitStudent} style={{ display: 'flex', gap: '0.75rem', maxWidth: '480px' }}>
-                <select
-                  className="form-input"
-                  value={selectedStudentId}
-                  onChange={(e) => setSelectedStudentId(e.target.value)}
-                  required
-                >
-                  <option value="">-- Select Student to Admit --</option>
-                  {allStudents
-                    .filter((s) => !enrollments.some((e) => e.student?.id === s.id))
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.username} ({s.email})
-                      </option>
-                    ))}
-                </select>
-                <button type="submit" className="btn btn-secondary" disabled={studentLoading || !selectedStudentId}>
-                  {studentLoading ? 'Admitting...' : '+ Admit Student'}
-                </button>
-              </form>
-            ) : null}
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: '2rem', alignItems: 'start' }}>
-            {/* Left Column: Materials */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* TAB 1: MATERIALS & IN-DB CONTENT */}
+          {activeTab === 'materials' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(320px, 1fr)', gap: '1.75rem', alignItems: 'start' }}>
               <div className="card">
-                <div className="card-header">
-                  <h2 className="card-title">📁 Materials & DB Content ({materials.length})</h2>
+                <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h2 className="card-title">📁 Classroom Materials & Database Content</h2>
+                    <p className="text-muted text-sm">Notes, articles, syllabi, and downloadable documents</p>
+                  </div>
                 </div>
+
                 {materials.length === 0 ? (
-                  <p className="text-muted text-sm text-center py-4">No materials uploaded yet.</p>
+                  <div className="empty-state py-8">
+                    <div className="empty-icon">📁</div>
+                    <div className="empty-title">No Materials Uploaded Yet</div>
+                    <div className="empty-desc">Use the form on the right to post lecture notes or upload slides/PDFs.</div>
+                  </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                     {materials.map((mat) => (
-                      <div key={mat.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'var(--surface-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: '1.5rem' }}>{mat.contentData ? '📖' : mat.filePath?.endsWith('.pdf') ? '📄' : '🎬'}</div>
+                      <div
+                        key={mat.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '1rem',
+                          padding: '1rem',
+                          background: 'var(--surface-2)',
+                          borderRadius: 'var(--radius)',
+                          border: '1px solid var(--border)',
+                        }}
+                      >
+                        <div style={{ fontSize: '1.75rem' }}>
+                          {mat.contentData ? '📖' : mat.filePath?.endsWith('.pdf') ? '📄' : '🎬'}
+                        </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 600 }}>{mat.title}</span>
@@ -396,11 +394,11 @@ const ManageMaterialsPage = () => {
                               {mat.contentType || (mat.contentData ? 'NOTE' : 'FILE')}
                             </span>
                             {mat.contentData && (
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>• Stored in DB</span>
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>• Stored in DB</span>
                             )}
                           </div>
                           {mat.contentDescription && (
-                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
                               {mat.contentDescription}
                             </div>
                           )}
@@ -425,7 +423,9 @@ const ManageMaterialsPage = () => {
                               📥 Download
                             </button>
                           )}
-                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteMaterial(mat.id)}>Delete</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteMaterial(mat.id)}>
+                            Delete
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -435,21 +435,24 @@ const ManageMaterialsPage = () => {
 
               {/* Add Material / Content Form */}
               <div className="card">
-                <h3 className="card-title mb-2">Add New Material / In-DB Content</h3>
-                <p className="text-muted text-sm mb-4">
-                  Save reading materials, notes, or syllabi directly in PostgreSQL DB, attach files, or both.
-                </p>
+                <div className="card-header">
+                  <h3 className="card-title">Add New Material / In-DB Note</h3>
+                  <p className="text-muted text-sm">Save reading notes directly to PostgreSQL DB, upload files, or both</p>
+                </div>
                 <form onSubmit={handleMaterialSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <input
-                    className="form-input"
-                    placeholder="Material Title (Required)"
-                    value={matTitle}
-                    onChange={(e) => setMatTitle(e.target.value)}
-                    required
-                  />
+                  <div className="form-group">
+                    <label className="form-label">Material Title *</label>
+                    <input
+                      className="form-input"
+                      placeholder="e.g. Chapter 3: Relational Algebra & SQL"
+                      value={matTitle}
+                      onChange={(e) => setMatTitle(e.target.value)}
+                      required
+                    />
+                  </div>
 
                   <div className="form-group">
-                    <label className="form-label" style={{ fontSize: 'var(--font-size-xs)' }}>Content Category</label>
+                    <label className="form-label">Content Category</label>
                     <select
                       className="form-input"
                       value={matContentType}
@@ -462,32 +465,33 @@ const ManageMaterialsPage = () => {
                     </select>
                   </div>
 
-                  <textarea
-                    className="form-textarea"
-                    placeholder="Brief description / overview (Optional)"
-                    value={matDesc}
-                    onChange={(e) => setMatDesc(e.target.value)}
-                    rows={2}
-                  />
+                  <div className="form-group">
+                    <label className="form-label">Description / Summary (Optional)</label>
+                    <textarea
+                      className="form-textarea"
+                      placeholder="Brief overview of what students will learn..."
+                      value={matDesc}
+                      onChange={(e) => setMatDesc(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
 
                   <div className="form-group">
-                    <label className="form-label" style={{ fontSize: 'var(--font-size-xs)', display: 'flex', justifyContent: 'space-between' }}>
+                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>Direct Database Content Text (Saved in PostgreSQL)</span>
-                      <span style={{ color: 'var(--accent, #00c2a8)' }}>Accessible & Viewed Easily</span>
+                      <span style={{ color: 'var(--accent, #00c2a8)', fontSize: 'var(--font-size-xs)' }}>Interactive Reader</span>
                     </label>
                     <textarea
                       className="form-textarea"
                       placeholder="Write or paste reading text, lesson content, markdown notes, code snippets, or syllabus here..."
                       value={matContentData}
                       onChange={(e) => setMatContentData(e.target.value)}
-                      rows={4}
+                      rows={5}
                     />
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label" style={{ fontSize: 'var(--font-size-xs)' }}>
-                      Optional File Attachment (PDF, slides, video)
-                    </label>
+                    <label className="form-label">Optional File Attachment (PDF, slides, video)</label>
                     <input
                       type="file"
                       className="form-input"
@@ -502,61 +506,105 @@ const ManageMaterialsPage = () => {
                 </form>
               </div>
             </div>
+          )}
 
-            {/* Right Column: Assignments */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* TAB 2: ASSIGNMENTS & DEADLINES */}
+          {activeTab === 'assignments' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(320px, 1fr)', gap: '1.75rem', alignItems: 'start' }}>
               <div className="card">
                 <div className="card-header">
-                  <h2 className="card-title">📝 Assignments ({assignments.length})</h2>
+                  <h2 className="card-title">📝 Assignments & Submissions ({assignments.length})</h2>
+                  <p className="text-muted text-sm">Create course assignments, enforce deadlines, and grade student submissions</p>
                 </div>
+
                 {assignments.length === 0 ? (
-                  <p className="text-muted text-sm text-center py-4">No assignments created yet.</p>
+                  <div className="empty-state py-8">
+                    <div className="empty-icon">📝</div>
+                    <div className="empty-title">No Assignments Created</div>
+                    <div className="empty-desc">Create your first assignment using the form on the right.</div>
+                  </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {assignments.map((asg) => (
-                      <div key={asg.id} style={{ padding: '1rem', background: 'var(--surface-2)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                        <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{asg.title}</div>
-                        <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>{asg.description}</p>
-                        {asg.dueDate && (
-                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--warning)', marginBottom: '0.75rem' }}>
-                            Due: {new Date(asg.dueDate).toLocaleString()}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {assignments.map((asg) => {
+                      const isPast = asg.dueDate && new Date(asg.dueDate) < new Date();
+                      return (
+                        <div
+                          key={asg.id}
+                          style={{
+                            padding: '1.25rem',
+                            background: 'var(--surface-2)',
+                            borderRadius: 'var(--radius)',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
+                            <div>
+                              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>{asg.title}</h3>
+                              <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                                {asg.description}
+                              </p>
+                            </div>
+                            <span className={`badge ${isPast ? 'badge-danger' : 'badge-warning'}`}>
+                              {isPast ? 'Deadline Passed' : 'Active Assignment'}
+                            </span>
                           </div>
-                        )}
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button className="btn btn-secondary btn-sm flex-1" onClick={() => navigate(`/assignments/${asg.id}/grade`)}>
-                            Grade Subs
-                          </button>
-                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteAssignment(asg.id)}>
-                            Delete
-                          </button>
+
+                          {asg.dueDate && (
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: isPast ? 'var(--danger)' : 'var(--warning)', marginBottom: '0.85rem' }}>
+                              📅 Due Date: {new Date(asg.dueDate).toLocaleString()}
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => navigate(`/assignments/${asg.id}/grade`)}
+                            >
+                              📊 Grade Student Submissions
+                            </button>
+                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteAssignment(asg.id)}>
+                              Delete Assignment
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
               {/* Add Assignment Form */}
               <div className="card">
-                <h3 className="card-title mb-4">Add New Assignment</h3>
+                <div className="card-header">
+                  <h3 className="card-title">Add New Assignment</h3>
+                  <p className="text-muted text-sm">Post new project prompts or homework with a submission deadline</p>
+                </div>
                 <form onSubmit={handleAssignmentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <input
-                    className="form-input"
-                    placeholder="Assignment Title"
-                    value={asgTitle}
-                    onChange={(e) => setAsgTitle(e.target.value)}
-                    required
-                  />
-                  <textarea
-                    className="form-textarea"
-                    placeholder="Description"
-                    value={asgDesc}
-                    onChange={(e) => setAsgDesc(e.target.value)}
-                    rows={3}
-                    required
-                  />
                   <div className="form-group">
-                    <label className="form-label">Due Date</label>
+                    <label className="form-label">Assignment Title *</label>
+                    <input
+                      className="form-input"
+                      placeholder="e.g. Midterm Project: Database Normalization"
+                      value={asgTitle}
+                      onChange={(e) => setAsgTitle(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Instructions & Rubric *</label>
+                    <textarea
+                      className="form-textarea"
+                      placeholder="Specify requirements, deliverables, grading criteria..."
+                      value={asgDesc}
+                      onChange={(e) => setAsgDesc(e.target.value)}
+                      rows={4}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Due Date & Time (Deadline)</label>
                     <input
                       type="datetime-local"
                       className="form-input"
@@ -564,14 +612,192 @@ const ManageMaterialsPage = () => {
                       onChange={(e) => setAsgDueDate(e.target.value)}
                     />
                   </div>
+
                   <button type="submit" className="btn btn-primary" disabled={asgLoading}>
                     {asgLoading ? 'Creating...' : 'Create Assignment'}
                   </button>
                 </form>
               </div>
             </div>
+          )}
 
-          </div>
+          {/* TAB 3: ADMITTED STUDENTS ROSTER */}
+          {activeTab === 'students' && (
+            <div className="card">
+              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h2 className="card-title">🎓 Admitted Classroom Students ({enrollments.length})</h2>
+                  <p className="text-muted text-sm">Manage student enrollment, admissions, and platform access to this course</p>
+                </div>
+
+                {/* Admit Student Form in Header */}
+                {allStudents.length > 0 && (
+                  <form onSubmit={handleAdmitStudent} style={{ display: 'flex', gap: '0.5rem', minWidth: '320px' }}>
+                    <select
+                      className="form-input"
+                      value={selectedStudentId}
+                      onChange={(e) => setSelectedStudentId(e.target.value)}
+                      required
+                    >
+                      <option value="">-- Select Student to Admit --</option>
+                      {allStudents
+                        .filter((s) => !enrollments.some((e) => e.student?.id === s.id))
+                        .map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.username} ({s.email})
+                          </option>
+                        ))}
+                    </select>
+                    <button type="submit" className="btn btn-primary btn-sm" disabled={studentLoading || !selectedStudentId}>
+                      {studentLoading ? 'Admitting...' : '+ Admit'}
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              {enrollments.length === 0 ? (
+                <div className="empty-state py-8">
+                  <div className="empty-icon">🎓</div>
+                  <div className="empty-title">No Students Admitted Yet</div>
+                  <div className="empty-desc">Select a student from the dropdown above to admit them to this classroom.</div>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                  {enrollments.map((enr) => (
+                    <div
+                      key={enr.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '1rem',
+                        background: 'var(--surface-2)',
+                        borderRadius: 'var(--radius)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          background: 'rgba(59, 130, 246, 0.15)',
+                          color: 'var(--primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: '1rem',
+                        }}>
+                          {enr.student?.username ? enr.student.username.charAt(0).toUpperCase() : 'S'}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
+                            {enr.student?.username || `Student #${enr.student?.id}`}
+                          </div>
+                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+                            {enr.student?.email}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: 'var(--danger)', padding: '0.3rem 0.6rem' }}
+                        title="Remove student from classroom"
+                        onClick={() => handleRemoveStudent(enr.student?.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: TEACHING STAFF & CO-INSTRUCTORS */}
+          {activeTab === 'instructors' && (
+            <div className="card">
+              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h2 className="card-title">👨‍🏫 Course Teaching Staff & Co-Instructors</h2>
+                  <p className="text-muted text-sm">Instructors who have access to manage materials and grade this course</p>
+                </div>
+
+                {/* Add Co-Instructor Form */}
+                <form onSubmit={handleAddCoInstructor} style={{ display: 'flex', gap: '0.5rem', minWidth: '320px' }}>
+                  <input
+                    type="email"
+                    className="form-input"
+                    placeholder="Instructor email address..."
+                    value={coInstructorEmail}
+                    onChange={(e) => setCoInstructorEmail(e.target.value)}
+                    required
+                  />
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={coInstructorLoading}>
+                    {coInstructorLoading ? 'Adding...' : '+ Add Faculty'}
+                  </button>
+                </form>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                {course?.instructors && course.instructors.length > 0 ? (
+                  course.instructors.map((inst, index) => (
+                    <div
+                      key={inst.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '1rem',
+                        background: 'var(--surface-2)',
+                        borderRadius: 'var(--radius)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                          width: '42px',
+                          height: '42px',
+                          borderRadius: '50%',
+                          background: index === 0 ? 'rgba(0, 194, 168, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                          color: index === 0 ? 'var(--accent, #00c2a8)' : 'var(--primary, #3b82f6)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: '1rem',
+                        }}>
+                          👨‍🏫
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
+                            {inst.username} {index === 0 && <span className="badge badge-success" style={{ marginLeft: '0.35rem', fontSize: '0.65rem' }}>Lead</span>}
+                          </div>
+                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+                            {inst.email}
+                          </div>
+                        </div>
+                      </div>
+
+                      {course.instructors.length > 1 && (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ color: 'var(--danger)', padding: '0.3rem 0.6rem' }}
+                          title="Remove co-instructor"
+                          onClick={() => handleRemoveCoInstructor(inst.id)}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-muted text-sm">No instructors listed.</p>
+                )}
+              </div>
+            </div>
+          )}
         </main>
       </div>
       <ContentViewerModal

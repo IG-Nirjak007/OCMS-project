@@ -66,7 +66,7 @@ public class EnrollmentController {
 
     // GET /api/enrollments - Get student's enrolled courses using JWT principal
     @GetMapping
-    @PreAuthorize("hasRole('STUDENT') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('STUDENT') or hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<List<Course>> getEnrolledCourses(@AuthenticationPrincipal UserDetails userDetails) {
         User student = getUserFromPrincipal(userDetails);
         return ResponseEntity.ok(enrollmentService.getCoursesForStudent(student.getId()));

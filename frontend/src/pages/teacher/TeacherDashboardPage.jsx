@@ -102,8 +102,16 @@ const TeacherDashboardPage = () => {
   const [search, setSearch] = useState('');
 
   const isTaughtByMe = (course) => {
-    return course.instructors?.some((i) => i.id === user?.id || i.email === user?.email);
+    return course.instructors?.some(
+      (i) => i.id === user?.id || (user?.email && i.email?.toLowerCase() === user?.email?.toLowerCase())
+    );
   };
+
+  useEffect(() => {
+    if (!loading && myCourses.length > 0 && myCourses.filter(isTaughtByMe).length === 0) {
+      setFilterMode('all');
+    }
+  }, [loading, myCourses, user]);
 
   const displayedCourses = myCourses.filter((c) => {
     const matchesFilter = filterMode === 'all' || isTaughtByMe(c);

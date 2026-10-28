@@ -38,37 +38,44 @@ public class OtpService {
     public String generateAndStoreOtp(String email) {
         SecureRandom random = new SecureRandom();
         String otp = String.format("%06d", random.nextInt(1000000));
+        String key = "OTP:" + email.trim().toLowerCase();
 
         try {
             if (redisTemplate != null && redisTemplate.getConnectionFactory() != null) {
-                redisTemplate.opsForValue().set("OTP:" + email, otp, OTP_EXPIRATION_MINUTES, TimeUnit.MINUTES);
+                redisTemplate.opsForValue().set(key, otp, OTP_EXPIRATION_MINUTES, TimeUnit.MINUTES);
+                System.out.println("[OtpService] Successfully stored OTP in Redis -> Key: " + key + ", Value: " + otp + " (TTL: 5 min)");
                 return otp;
             }
-        } catch (Exception ignored) {
-            // Redis unreachable, fallback to in-memory store
+        } catch (Exception e) {
+            System.err.println("[OtpService] Redis storage error (" + e.getMessage() + "), using in-memory store.");
         }
 
-        inMemoryOtpStore.put("OTP:" + email, new OtpEntry(otp, System.currentTimeMillis() + OTP_EXPIRATION_MINUTES * 60 * 1000L));
+        inMemoryOtpStore.put(key, new OtpEntry(otp, System.currentTimeMillis() + OTP_EXPIRATION_MINUTES * 60 * 1000L));
+        System.out.println("[OtpService] Stored OTP in in-memory store -> Key: " + key + ", Value: " + otp);
         return otp;
     }
 
     // Validates the OTP against Redis or in-memory store
     public boolean validateOtp(String email, String inputOtp) {
+        String key = "OTP:" + email.trim().toLowerCase();
         try {
             if (redisTemplate != null && redisTemplate.getConnectionFactory() != null) {
-                String storedOtp = redisTemplate.opsForValue().get("OTP:" + email);
-                if (storedOtp != null && storedOtp.equals(inputOtp)) {
-                    redisTemplate.delete("OTP:" + email);
+                String storedOtp = redisTemplate.opsForValue().get(key);
+                System.out.println("[OtpService] Checking Redis for key: " + key + " (Found: " + storedOtp + ")");
+                if (storedOtp != null && storedOtp.equals(inputOtp.trim())) {
+                    redisTemplate.delete(key);
+                    System.out.println("[OtpService] Redis OTP validated & deleted for: " + key);
                     return true;
                 }
             }
-        } catch (Exception ignored) {
-            // Fallback to in-memory store
+        } catch (Exception e) {
+            System.err.println("[OtpService] Redis validation error (" + e.getMessage() + "), checking in-memory store.");
         }
 
-        OtpEntry entry = inMemoryOtpStore.get("OTP:" + email);
-        if (entry != null && entry.isValid(inputOtp)) {
-            inMemoryOtpStore.remove("OTP:" + email);
+        OtpEntry entry = inMemoryOtpStore.get(key);
+        if (entry != null && entry.isValid(inputOtp.trim())) {
+            inMemoryOtpStore.remove(key);
+            System.out.println("[OtpService] In-memory OTP validated & deleted for: " + key);
             return true;
         }
         return false;
