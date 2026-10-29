@@ -5,6 +5,7 @@ import com.ocms.config.JwtUtils;
 import com.ocms.models.Role;
 import com.ocms.models.User;
 import com.ocms.dto.UserDTO;
+import com.ocms.dto.DTOMapper;
 import com.ocms.repositories.UserRepository;
 import com.ocms.services.EmailService;
 import com.ocms.services.OtpService;
@@ -13,6 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -53,7 +55,7 @@ public class AuthController {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // POST /api/auth/register — supports registering as STUDENT or TEACHER
+    // POST /api/auth/register — supports registering as STUDENT or TEACHER (requires Admin approval)
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody RegisterRequest registerRequest) {
         String requestedRole = registerRequest.getRole();
@@ -68,33 +70,54 @@ public class AuthController {
                 registerRequest.getPassword(),
                 roleToAssign
         );
-        UserDTO userDTO = new UserDTO(user.getId(), user.getUsername(), user.getEmail(), user.getRoles());
-        return ResponseEntity.ok(Map.of("message", "User registered successfully.", "user", userDTO));
+        UserDTO userDTO = DTOMapper.toUserDTO(user);
+        return ResponseEntity.ok(Map.of(
+            "message", "Registration submitted successfully! Your account is pending administrator approval before you can log in.",
+            "user", userDTO,
+            "pendingApproval", true
+        ));
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> loginUser(@RequestBody LoginRequest loginRequest) {
         try {
             String loginId = loginRequest.getEmail() != null ? loginRequest.getEmail().trim() : "";
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginId, loginRequest.getPassword())
-            );
 
-            String jwt = jwtUtils.generateJwtToken(authentication);
-
+            // Check if user exists and whether the account has been approved by an administrator
             User user = userRepository.findByEmailIgnoreCase(loginId)
                     .or(() -> userRepository.findByUsernameIgnoreCase(loginId))
                     .or(() -> userRepository.findByEmail(loginId))
                     .or(() -> userRepository.findByUsername(loginId))
-                    .orElseThrow(() -> new RuntimeException("User not found with identifier: " + loginId));
+                    .orElse(null);
 
-            UserDTO userDto = new UserDTO(user.getId(), user.getUsername(), user.getEmail(), user.getRoles());
+            if (user != null && !Boolean.TRUE.equals(user.getApproved())) {
+                return ResponseEntity.status(403).body(Map.of(
+                    "message", "Your account registration is pending administrator approval. Please wait for an administrator to approve your account before logging in."
+                ));
+            }
+
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginId, loginRequest.getPassword())
+            );
+
+            if (user == null) {
+                user = userRepository.findByEmailIgnoreCase(loginId)
+                        .or(() -> userRepository.findByUsernameIgnoreCase(loginId))
+                        .orElseThrow(() -> new RuntimeException("User not found with identifier: " + loginId));
+            }
+
+            String jwt = jwtUtils.generateJwtToken(authentication);
+            UserDTO userDto = DTOMapper.toUserDTO(user);
 
             Map<String, Object> response = new HashMap<>();
             response.put("token", jwt);
             response.put("user", userDto);
 
             return ResponseEntity.ok(response);
+        } catch (DisabledException e) {
+            return ResponseEntity.status(403).body(Map.of(
+                "message", "Your account registration is pending administrator approval. Please wait for an administrator to approve your account before logging in."
+            ));
         } catch (BadCredentialsException e) {
             return ResponseEntity.status(401).body(Map.of("message", "Invalid email or password."));
         } catch (Exception e) {

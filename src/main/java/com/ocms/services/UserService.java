@@ -59,6 +59,7 @@ public class UserService {
         user.setEmail(cleanEmail);
         user.setPassword(passwordEncoder.encode(rawPassword));
         user.setRoles(Collections.singleton(role));
+        user.setApproved(false);
 
         return userRepository.save(user);
     }

@@ -148,11 +148,13 @@ public class DataSeeder implements CommandLineRunner {
             user.setEmail(cleanEmail);
             user.setPassword(passwordEncoder.encode(rawPassword));
             user.setRoles(new HashSet<>(Collections.singletonList(role)));
+            user.setApproved(true);
             return userRepository.save(user);
         } else {
             // Update password & ensure role is set cleanly
             user.setPassword(passwordEncoder.encode(rawPassword));
             user.setRoles(new HashSet<>(Collections.singletonList(role)));
+            user.setApproved(true);
             return userRepository.save(user);
         }
     }

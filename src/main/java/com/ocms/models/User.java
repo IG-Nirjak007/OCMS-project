@@ -46,4 +46,8 @@ public class User {
     )
     @Builder.Default
     private Set<Role> roles = new HashSet<>();
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean approved = false;
 }

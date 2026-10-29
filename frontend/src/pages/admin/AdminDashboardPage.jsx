@@ -4,7 +4,7 @@ import Navbar from '../../components/layout/Navbar';
 import Sidebar from '../../components/layout/Sidebar';
 import Footer from '../../components/layout/Footer';
 import client from '../../api/client';
-import { getAllUsers, updateUserRole, deleteUser, createUser, getAdminStats } from '../../api/adminApi';
+import { getAllUsers, updateUserRole, approveUser, deleteUser, createUser, getAdminStats } from '../../api/adminApi';
 
 const CreateClassroomModal = ({ onClose, onCreated, teachers, students }) => {
   const [form, setForm] = useState({
@@ -442,6 +442,20 @@ const AdminDashboardPage = () => {
     }
   };
 
+  const handleApproveUser = async (userId) => {
+    setError('');
+    setSuccess('');
+    try {
+      await approveUser(userId);
+      setSuccess('User registration approved successfully! The user is now permitted to log in.');
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, approved: true } : u))
+      );
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to approve user.');
+    }
+  };
+
   const handleDeleteUser = async (userId) => {
     if (!window.confirm('Delete this user? All associated data will be removed.')) return;
     setError('');
@@ -468,9 +482,17 @@ const AdminDashboardPage = () => {
     }
   };
 
+  const pendingUsers = users.filter((u) => !u.approved);
+
   const filteredUsers = users.filter((u) => {
     const role = getPrimaryRole(u);
-    const matchesFilter = userRoleFilter === 'ALL' || role === userRoleFilter;
+    let matchesFilter = true;
+    if (userRoleFilter === 'PENDING') {
+      matchesFilter = !u.approved;
+    } else if (userRoleFilter !== 'ALL') {
+      matchesFilter = role === userRoleFilter;
+    }
+
     const matchesSearch =
       u.username.toLowerCase().includes(userSearch.toLowerCase()) ||
       u.email.toLowerCase().includes(userSearch.toLowerCase());
@@ -515,6 +537,23 @@ const AdminDashboardPage = () => {
               <div>
                 <div className="stat-value">{courses.length}</div>
                 <div className="stat-label">Total Classrooms</div>
+              </div>
+            </div>
+            <div
+              className="stat-card"
+              style={{
+                cursor: 'pointer',
+                border: pendingUsers.length > 0 ? '2px solid #f59e0b' : '1px solid var(--border)',
+                background: pendingUsers.length > 0 ? 'rgba(245, 158, 11, 0.06)' : 'var(--surface-2)',
+              }}
+              onClick={() => { setActiveTab('users'); setUserRoleFilter('PENDING'); }}
+            >
+              <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#d97706' }}>⏳</div>
+              <div>
+                <div className="stat-value" style={{ color: pendingUsers.length > 0 ? '#d97706' : 'inherit' }}>
+                  {pendingUsers.length}
+                </div>
+                <div className="stat-label">Pending Approvals</div>
               </div>
             </div>
             <div className="stat-card" style={{ cursor: 'pointer' }} onClick={() => { setActiveTab('users'); setUserRoleFilter('TEACHER'); }}>
@@ -646,12 +685,19 @@ const AdminDashboardPage = () => {
           {activeTab === 'users' && (
             <div className="card">
               <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                   <button
                     className={`btn btn-sm ${userRoleFilter === 'ALL' ? 'btn-primary' : 'btn-ghost'}`}
                     onClick={() => setUserRoleFilter('ALL')}
                   >
                     All ({users.length})
+                  </button>
+                  <button
+                    className={`btn btn-sm ${userRoleFilter === 'PENDING' ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => setUserRoleFilter('PENDING')}
+                    style={pendingUsers.length > 0 ? { borderColor: '#f59e0b', color: userRoleFilter === 'PENDING' ? '#fff' : '#d97706', fontWeight: 600 } : {}}
+                  >
+                    ⏳ Pending Approvals ({pendingUsers.length})
                   </button>
                   <button
                     className={`btn btn-sm ${userRoleFilter === 'TEACHER' ? 'btn-primary' : 'btn-ghost'}`}
@@ -704,6 +750,7 @@ const AdminDashboardPage = () => {
                         <th>User</th>
                         <th>Email</th>
                         <th>Assigned Role</th>
+                        <th>Status</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -743,7 +790,39 @@ const AdminDashboardPage = () => {
                               )}
                             </td>
                             <td>
-                              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              {u.approved ? (
+                                <span className="badge badge-success">✓ Active</span>
+                              ) : (
+                                <span
+                                  className="badge"
+                                  style={{
+                                    background: 'rgba(245, 158, 11, 0.15)',
+                                    color: '#b45309',
+                                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  ⏳ Pending
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                {!u.approved && (
+                                  <button
+                                    className="btn btn-sm btn-primary"
+                                    style={{
+                                      background: '#10b981',
+                                      borderColor: '#10b981',
+                                      color: '#fff',
+                                      fontWeight: 600,
+                                    }}
+                                    onClick={() => handleApproveUser(u.id)}
+                                    title="Approve this user account so they can log in"
+                                  >
+                                    ✓ Approve
+                                  </button>
+                                )}
                                 {isEditing ? (
                                   <>
                                     <button className="btn btn-success btn-sm" onClick={() => handleRoleUpdate(u.id)}>
@@ -768,7 +847,7 @@ const AdminDashboardPage = () => {
                                       className="btn btn-danger btn-sm"
                                       onClick={() => handleDeleteUser(u.id)}
                                     >
-                                      Delete
+                                      {u.approved ? 'Delete' : 'Reject'}
                                     </button>
                                   </>
                                 )}

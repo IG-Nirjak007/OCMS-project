@@ -56,6 +56,23 @@ public class AdminService {
 
         User savedUser = userRepository.saveAndFlush(user);
 
-        return new UserDTO(savedUser.getId(), savedUser.getUsername(), savedUser.getEmail(), savedUser.getRoles());
+        return new UserDTO(savedUser.getId(), savedUser.getUsername(), savedUser.getEmail(), savedUser.getRoles(), savedUser.getApproved());
+    }
+
+    /**
+     * Approves a pending user account registration.
+     *
+     * @param userId the ID of the user to approve
+     * @return a UserDTO reflecting the approved user
+     */
+    @Transactional
+    public UserDTO approveUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+
+        user.setApproved(true);
+        User savedUser = userRepository.saveAndFlush(user);
+
+        return new UserDTO(savedUser.getId(), savedUser.getUsername(), savedUser.getEmail(), savedUser.getRoles(), savedUser.getApproved());
     }
 }

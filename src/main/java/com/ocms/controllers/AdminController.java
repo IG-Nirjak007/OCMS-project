@@ -43,6 +43,13 @@ public class AdminController {
         return ResponseEntity.ok(updatedUser);
     }
 
+    /** Approve a pending user account registration. */
+    @PutMapping("/users/{id}/approve")
+    public ResponseEntity<?> approveUser(@PathVariable Long id) {
+        UserDTO approvedUser = adminService.approveUser(id);
+        return ResponseEntity.ok(Map.of("message", "User approved successfully.", "user", approvedUser));
+    }
+
     /** Get all users (admin overview). */
     @GetMapping("/users")
     public ResponseEntity<List<UserDTO>> getAllUsers() {
@@ -73,7 +80,8 @@ public class AdminController {
         }
 
         User user = userService.register(username, email, password, role);
-        return ResponseEntity.ok(DTOMapper.toUserDTO(user));
+        UserDTO approvedUser = adminService.approveUser(user.getId());
+        return ResponseEntity.ok(approvedUser);
     }
 
     /** Remove a user account by ID. */

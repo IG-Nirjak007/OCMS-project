@@ -20,7 +20,8 @@ public class DTOMapper {
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
-                user.getRoles()
+                user.getRoles(),
+                user.getApproved() != null ? user.getApproved() : false
         );
     }
 

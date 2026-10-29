@@ -24,11 +24,17 @@ public class UserDTO {
     private String username;
     private String email;
     private Set<String> roles;
+    private Boolean approved;
 
     public UserDTO(Long id, String username, String email, Collection<?> roles) {
+        this(id, username, email, roles, true);
+    }
+
+    public UserDTO(Long id, String username, String email, Collection<?> roles, Boolean approved) {
         this.id = id;
         this.username = username;
         this.email = email;
+        this.approved = approved != null ? approved : false;
         if (roles == null) {
             this.roles = new HashSet<>();
         } else {

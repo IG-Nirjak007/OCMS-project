@@ -52,7 +52,25 @@ const LoginPage = () => {
             <p>Online Course Management System</p>
           </div>
 
-          {error && <div className="auth-error">⚠ {error}</div>}
+          {error && (
+            <div
+              className="auth-error"
+              style={
+                error.toLowerCase().includes('pending')
+                  ? {
+                      background: 'rgba(245, 158, 11, 0.12)',
+                      borderColor: 'rgba(245, 158, 11, 0.4)',
+                      color: '#b45309',
+                      textAlign: 'left',
+                      lineHeight: 1.45,
+                    }
+                  : {}
+              }
+            >
+              {error.toLowerCase().includes('pending') ? '⏳ ' : '⚠ '}
+              {error}
+            </div>
+          )}
 
           <form className="auth-form" onSubmit={handleSubmit}>
             <div className="form-group">
